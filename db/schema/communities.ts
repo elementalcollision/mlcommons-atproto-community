@@ -3,15 +3,17 @@ import { users } from './users';
 
 export const communities = pgTable('communities', {
   id: text('id').primaryKey(), // UUID
-  rkey: text('rkey').notNull(), // ATProto record key
   creatorDid: text('creator_did').references(() => users.id).notNull(),
   name: text('name').notNull().unique(), // URL-safe name
   displayName: text('display_name').notNull(),
   description: text('description'),
-  avatar: text('avatar'),
-  banner: text('banner'),
+  avatar: text('avatar'), // JSON stringified BlobRef
+  banner: text('banner'), // JSON stringified BlobRef
   visibility: text('visibility', { enum: ['public', 'unlisted', 'private'] }).default('public').notNull(),
   postPermissions: text('post_permissions', { enum: ['anyone', 'approved', 'moderators'] }).default('anyone').notNull(),
+  atprotoUri: text('atproto_uri'), // ATProto record URI
+  atprotoCid: text('atproto_cid'), // ATProto record CID
+  atprotoRkey: text('atproto_rkey'), // ATProto record key (TID)
   memberCount: integer('member_count').default(0).notNull(),
   postCount: integer('post_count').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
