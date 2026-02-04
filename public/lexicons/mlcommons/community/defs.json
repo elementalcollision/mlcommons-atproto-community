@@ -1,0 +1,91 @@
+{
+  "lexicon": 1,
+  "id": "mlcommons.community.defs",
+  "defs": {
+    "communityRef": {
+      "type": "object",
+      "description": "Reference to a community",
+      "required": ["uri"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "AT-URI of the community definition record"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid",
+          "description": "CID of the community definition record"
+        }
+      }
+    },
+    "communityView": {
+      "type": "object",
+      "description": "View of a community with metadata",
+      "required": ["uri", "cid", "name", "displayName", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "creator": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "name": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "banner": {
+          "type": "string"
+        },
+        "visibility": {
+          "type": "string"
+        },
+        "postPermissions": {
+          "type": "string"
+        },
+        "memberCount": {
+          "type": "integer",
+          "description": "Number of subscribed members"
+        },
+        "postCount": {
+          "type": "integer",
+          "description": "Number of posts in community"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "viewerSubscribed": {
+          "type": "boolean",
+          "description": "Is the current viewer subscribed"
+        },
+        "viewerIsModerator": {
+          "type": "boolean",
+          "description": "Is the current viewer a moderator"
+        }
+      }
+    },
+    "visibility": {
+      "type": "string",
+      "knownValues": ["public", "unlisted", "private"]
+    },
+    "postPermissions": {
+      "type": "string",
+      "knownValues": ["anyone", "approved", "moderators"]
+    }
+  }
+}
