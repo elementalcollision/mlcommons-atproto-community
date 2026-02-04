@@ -15,3 +15,5 @@ node_modules
 
 # Drizzle
 drizzle.config.local.ts
+.vercel
+.env*.local
