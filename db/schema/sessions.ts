@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, index } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 import { users } from './users';
 import { identities } from './identities';
 
@@ -13,6 +14,17 @@ export const sessions = pgTable('sessions', {
 }, (table) => ({
   userIdIdx: index('sessions_user_id_idx').on(table.userId),
   expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+  identity: one(identities, {
+    fields: [sessions.identityId],
+    references: [identities.id],
+  }),
 }));
 
 export type Session = typeof sessions.$inferSelect;
