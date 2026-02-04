@@ -9,6 +9,7 @@ import { uploadBlob } from "./atproto.server";
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_SIZE = 1_000_000; // 1MB
 const MAX_BANNER_SIZE = 3_000_000; // 3MB
+const MAX_POST_IMAGE_SIZE = 5_000_000; // 5MB
 
 export interface ImageValidationOptions {
   maxSize: number;
@@ -149,4 +150,52 @@ export async function uploadCommunityImages(
   }
 
   return { avatarBlob, bannerBlob, errors };
+}
+
+/**
+ * Upload post images (up to 4 images)
+ */
+export async function uploadPostImages(
+  agent: Agent,
+  images: File[]
+): Promise<{
+  blobs: BlobRef[];
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  const blobs: BlobRef[] = [];
+
+  // Validate count
+  if (images.length > 4) {
+    errors.push('Maximum 4 images allowed per post');
+    return { blobs: [], errors };
+  }
+
+  // Upload each image
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i];
+    try {
+      const { data, mimeType } = await processUploadedFile(image);
+
+      // Validate image
+      const validation = validateImage(data, mimeType, {
+        maxSize: MAX_POST_IMAGE_SIZE,
+      });
+
+      if (!validation.valid) {
+        errors.push(`Image ${i + 1}: ${validation.error}`);
+        continue;
+      }
+
+      // Upload
+      const blob = await uploadBlob(agent, data, mimeType);
+      blobs.push(blob);
+    } catch (error) {
+      errors.push(
+        `Image ${i + 1} upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  return { blobs, errors };
 }

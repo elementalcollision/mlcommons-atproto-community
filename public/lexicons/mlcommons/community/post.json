@@ -1,0 +1,122 @@
+{
+  "lexicon": 1,
+  "id": "mlcommons.community.post",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A post within a community",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "communityRef", "createdAt"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "description": "Post content (markdown supported)"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "Post title (optional)"
+          },
+          "communityRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT URI of the parent community"
+          },
+          "embed": {
+            "type": "union",
+            "refs": ["#images", "#external", "#record"],
+            "description": "Embedded content"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxLength": 8,
+            "description": "Post flair/tags"
+          },
+          "reply": {
+            "type": "ref",
+            "ref": "#replyRef",
+            "description": "Reply threading info"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": ["root", "parent"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "Root post URI"
+        },
+        "parent": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "Parent post/comment URI"
+        }
+      }
+    },
+    "images": {
+      "type": "object",
+      "required": ["images"],
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg", "image/webp"],
+            "maxSize": 5000000
+          },
+          "maxLength": 4,
+          "description": "Up to 4 images"
+        }
+      }
+    },
+    "external": {
+      "type": "object",
+      "required": ["uri", "title", "description"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "uri",
+          "description": "External link URL"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Link title"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Link description"
+        },
+        "thumb": {
+          "type": "blob",
+          "accept": ["image/png", "image/jpeg", "image/webp"],
+          "maxSize": 1000000,
+          "description": "Link preview thumbnail"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "required": ["record"],
+      "properties": {
+        "record": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "Embedded ATProto record URI"
+        }
+      }
+    }
+  }
+}

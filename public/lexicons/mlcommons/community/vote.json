@@ -1,0 +1,31 @@
+{
+  "lexicon": 1,
+  "id": "mlcommons.community.vote",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Upvote or downvote on a post or comment",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "direction", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "Post or comment being voted on"
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["up", "down"],
+            "description": "Vote direction"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}
