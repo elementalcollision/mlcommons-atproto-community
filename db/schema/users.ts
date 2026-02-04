@@ -1,8 +1,8 @@
 import { pgTable, text, timestamp, integer } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
-  did: text('did').primaryKey(), // ATProto DID
-  handle: text('handle').notNull().unique(),
+  id: text('id').primaryKey(), // UUID - provider agnostic
+  email: text('email').unique(), // Common identifier across providers
   displayName: text('display_name'),
   avatar: text('avatar'),
   bio: text('bio'),

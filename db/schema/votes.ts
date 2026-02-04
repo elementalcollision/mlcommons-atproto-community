@@ -4,7 +4,7 @@ import { users } from './users';
 export const votes = pgTable('votes', {
   uri: text('uri').primaryKey(), // at://did/mlcommons.community.vote/rkey
   rkey: text('rkey').notNull(),
-  authorDid: text('author_did').references(() => users.did).notNull(),
+  authorDid: text('author_did').references(() => users.id).notNull(),
   subjectUri: text('subject_uri').notNull(), // Post/comment URI
   direction: text('direction', { enum: ['up', 'down'] }).notNull(), // 'up' or 'down'
   createdAt: timestamp('created_at').notNull(),

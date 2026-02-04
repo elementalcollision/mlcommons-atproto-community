@@ -4,7 +4,7 @@ import { communities } from './communities';
 
 export const subscriptions = pgTable('subscriptions', {
   id: text('id').primaryKey(),
-  userDid: text('user_did').references(() => users.did).notNull(),
+  userDid: text('user_did').references(() => users.id).notNull(),
   communityId: text('community_id').references(() => communities.id).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({

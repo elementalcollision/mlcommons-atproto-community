@@ -5,7 +5,7 @@ import { communities } from './communities';
 export const moderators = pgTable('moderators', {
   id: text('id').primaryKey(),
   communityId: text('community_id').references(() => communities.id).notNull(),
-  userDid: text('user_did').references(() => users.did).notNull(),
+  userDid: text('user_did').references(() => users.id).notNull(),
   role: text('role', { enum: ['moderator', 'admin'] }).default('moderator').notNull(),
   permissions: text('permissions').array(), // Specific permissions
   createdAt: timestamp('created_at').defaultNow().notNull(),

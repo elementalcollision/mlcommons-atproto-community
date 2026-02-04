@@ -6,7 +6,7 @@ export const posts = pgTable('posts', {
   uri: text('uri').primaryKey(), // ATProto URI: at://did/mlcommons.community.post/rkey
   rkey: text('rkey').notNull(),
   cid: text('cid').notNull(), // Content ID for versioning
-  authorDid: text('author_did').references(() => users.did).notNull(),
+  authorDid: text('author_did').references(() => users.id).notNull(),
   communityId: text('community_id').references(() => communities.id).notNull(),
   title: text('title'),
   text: text('text').notNull(),

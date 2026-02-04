@@ -4,7 +4,7 @@ import { users } from './users';
 export const communities = pgTable('communities', {
   id: text('id').primaryKey(), // UUID
   rkey: text('rkey').notNull(), // ATProto record key
-  creatorDid: text('creator_did').references(() => users.did).notNull(),
+  creatorDid: text('creator_did').references(() => users.id).notNull(),
   name: text('name').notNull().unique(), // URL-safe name
   displayName: text('display_name').notNull(),
   description: text('description'),
