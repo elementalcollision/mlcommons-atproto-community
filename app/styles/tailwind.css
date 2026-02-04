@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* MLCommons Design System Variables */
+  :root {
+    --spacing-1: 24px;
+    --spacing-2: clamp(24px, 2vw, 48px);
+    --spacing-3: clamp(48px, 4vw, 72px);
+    --spacing-4: clamp(72px, 6vw, 96px);
+    --spacing-5: clamp(96px, 8vw, 128px);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply text-base leading-relaxed;
+  }
+
+  /* Heading Styles */
+  h1 {
+    @apply text-3xl font-serif font-bold leading-tight;
+  }
+
+  h2 {
+    @apply text-2xl font-serif font-bold leading-tight;
+  }
+
+  h3 {
+    @apply text-xl font-sans font-semibold;
+  }
+
+  h4 {
+    @apply text-lg font-sans font-semibold;
+  }
+
+  /* Link Styles */
+  a {
+    @apply underline decoration-1 underline-offset-2 transition-colors;
+  }
+
+  a:hover {
+    @apply text-secondary-blue;
+  }
+
+  a:focus-visible {
+    @apply outline-2 outline-offset-2 outline-secondary-blue;
+  }
+}
+
+@layer components {
+  /* Screen Reader Only */
+  .sr-only {
+    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  /* Container */
+  .container-custom {
+    @apply mx-auto max-w-content px-6 lg:px-8;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-white rounded shadow-natural p-6 transition-shadow;
+  }
+
+  .card:hover {
+    @apply shadow-deep;
+  }
+}
+
+@layer utilities {
+  /* Focus Visible Utility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-blue focus-visible:ring-offset-2;
+  }
+
+  /* Smooth Transitions */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+}
