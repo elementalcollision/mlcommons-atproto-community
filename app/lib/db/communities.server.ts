@@ -253,3 +253,17 @@ export async function unsubscribeUserFromCommunity(
     .set({ memberCount: sql`${communities.memberCount} - 1` })
     .where(eq(communities.id, communityId));
 }
+
+/**
+ * Get user's subscribed community IDs
+ */
+export async function getUserSubscribedCommunityIds(
+  userId: string
+): Promise<string[]> {
+  const results = await db
+    .select({ communityId: subscriptions.communityId })
+    .from(subscriptions)
+    .where(eq(subscriptions.userDid, userId));
+
+  return results.map((r) => r.communityId);
+}

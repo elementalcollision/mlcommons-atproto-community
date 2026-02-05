@@ -64,6 +64,7 @@ export async function getPostWithVotes(
 export async function listPosts(
   options: {
     communityId?: string;
+    communityIds?: string[]; // For global/subscribed feeds
     authorDid?: string;
     replyRoot?: string;
     search?: string;
@@ -77,6 +78,7 @@ export async function listPosts(
 ): Promise<PostWithVotes[]> {
   const {
     communityId,
+    communityIds,
     authorDid,
     replyRoot,
     search,
@@ -91,6 +93,8 @@ export async function listPosts(
   const conditions = [];
   if (communityId) {
     conditions.push(eq(posts.communityId, communityId));
+  } else if (communityIds && communityIds.length > 0) {
+    conditions.push(inArray(posts.communityId, communityIds));
   }
   if (authorDid) {
     conditions.push(eq(posts.authorDid, authorDid));

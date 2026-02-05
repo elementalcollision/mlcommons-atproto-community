@@ -49,6 +49,7 @@ export interface UpdatePostInput {
  */
 export interface ListPostsOptions {
   communityId?: string;
+  communityIds?: string[]; // For global/subscribed feeds (multiple communities)
   authorDid?: string;
   replyRoot?: string;  // Get comments for a post
   search?: string;     // Search in title and text
