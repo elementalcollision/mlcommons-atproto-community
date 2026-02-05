@@ -11,6 +11,7 @@ import {
 import type { LinksFunction } from "@remix-run/node";
 
 import "./styles/tailwind.css";
+import { ThemeProvider } from "~/components/ThemeProvider";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -25,17 +26,30 @@ export const links: LinksFunction = () => [
   },
 ];
 
+// Inline script to prevent FOUC (flash of unstyled content)
+const themeInitScript = `
+  (function() {
+    const theme = localStorage.getItem('theme') || 'system';
+    if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+`;
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Meta />
         <Links />
       </head>
-      <body className="bg-light font-sans text-dark antialiased">
-        {children}
+      <body className="bg-light dark:bg-dark-darkest font-sans text-dark dark:text-gray-100 antialiased transition-colors">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
