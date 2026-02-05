@@ -4,5 +4,11 @@
   "installCommand": "npm install",
   "framework": "remix",
   "outputDirectory": "build",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/recalculate-hot",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
