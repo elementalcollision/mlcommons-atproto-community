@@ -6,6 +6,7 @@ import { optionalAuth } from '~/lib/auth/require-auth.server';
 import { getCommunity } from '~/services/community.server';
 import { listPosts } from '~/services/post.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
+import { PostHeader } from '~/components/post/PostHeader';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const auth = await optionalAuth(request);
@@ -200,19 +201,9 @@ function PostCard({
   communityName: string;
   isAuthenticated: boolean;
 }) {
-  // Format timestamp
-  const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
-    addSuffix: true,
-  });
-
   // Truncate text for preview
   const truncatedText =
     post.text.length > 300 ? post.text.slice(0, 300) + '...' : post.text;
-
-  // Format author DID for display (show first 12 chars)
-  const authorDisplay = post.authorDid.startsWith('did:')
-    ? post.authorDid.slice(0, 20) + '...'
-    : post.authorDid;
 
   return (
     <div className="card hover:shadow-lg transition-smooth">
@@ -239,6 +230,15 @@ function PostCard({
               </Link>
             </h3>
           )}
+
+          {/* Author & Time */}
+          <div className="mb-2">
+            <PostHeader
+              authorDid={post.authorDid}
+              createdAt={post.createdAt}
+              size="small"
+            />
+          </div>
 
           {/* Text Preview */}
           <p className="text-gray mb-3 whitespace-pre-wrap break-words">
@@ -285,12 +285,8 @@ function PostCard({
             </div>
           )}
 
-          {/* Metadata */}
+          {/* Footer Metadata */}
           <div className="flex items-center gap-2 text-sm text-gray flex-wrap">
-            <span title={post.authorDid}>{authorDisplay}</span>
-            <span>•</span>
-            <span>{timeAgo}</span>
-            <span>•</span>
             <Link
               to={`/c/${communityName}/p/${encodeURIComponent(post.uri)}`}
               className="hover:text-secondary-blue transition-smooth"

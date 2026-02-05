@@ -1,12 +1,17 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { json, redirect } from '@remix-run/node';
-import { useLoaderData, useActionData, Form, Link } from '@remix-run/react';
+import { useLoaderData, useActionData, Form, Link, useNavigate, useFetcher } from '@remix-run/react';
 import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from 'react';
 import { requireAuth, optionalAuth } from '~/lib/auth/require-auth.server';
 import { getCommunity } from '~/services/community.server';
 import { getPost, listPosts, createPost } from '~/services/post.server';
 import { createPostSchema } from '~/lib/validations/post';
 import { VoteButtons } from '~/components/post/VoteButtons';
+import { PostHeader } from '~/components/post/PostHeader';
+import { PostActionMenu } from '~/components/post/PostActionMenu';
+import { ConfirmDialog } from '~/components/ui/ConfirmDialog';
+import { getUserModeratorRole } from '~/lib/db/moderators.server';
 import { z } from 'zod';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -41,12 +46,19 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     auth?.user.id
   );
 
+  // Check moderator status
+  let moderatorRole: 'admin' | 'moderator' | null = null;
+  if (auth?.user.id) {
+    moderatorRole = await getUserModeratorRole(auth.user.id, community.id);
+  }
+
   return json({
     post,
     comments,
     community,
     isAuthenticated: !!auth,
     currentUserId: auth?.user.id,
+    moderatorRole,
   });
 }
 
@@ -110,22 +122,84 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function PostDetail() {
-  const { post, comments, community, isAuthenticated, currentUserId } =
+  const { post, comments, community, isAuthenticated, currentUserId, moderatorRole } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const navigate = useNavigate();
+  const fetcher = useFetcher();
 
-  // Format timestamp
-  const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
-    addSuffix: true,
-  });
+  // Edit/Delete state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title || '');
+  const [editText, setEditText] = useState(post.text);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Format author DID
-  const authorDisplay = post.authorDid.startsWith('did:')
-    ? post.authorDid.slice(0, 20) + '...'
-    : post.authorDid;
+  // Handle fetcher responses
+  useEffect(() => {
+    const data = fetcher.data as { success?: boolean; deleted?: boolean; post?: unknown; error?: string } | undefined;
+    if (data) {
+      if (data.success) {
+        if (data.deleted) {
+          // Post deleted, navigate back to community
+          navigate(`/c/${community.name}`);
+        } else if (data.post) {
+          // Post edited, close edit mode
+          setIsEditing(false);
+          setActionError(null);
+        }
+      } else if (data.error) {
+        setActionError(data.error);
+      }
+    }
+  }, [fetcher.data, community.name, navigate]);
 
   // Check if current user is author
   const isAuthor = currentUserId === post.authorDid;
+  const isModerator = !!moderatorRole;
+
+  // Handle edit
+  const handleEdit = () => {
+    setEditTitle(post.title || '');
+    setEditText(post.text);
+    setIsEditing(true);
+    setActionError(null);
+  };
+
+  const handleSaveEdit = () => {
+    fetcher.submit(
+      {
+        intent: 'edit',
+        postUri: post.uri,
+        title: editTitle,
+        text: editText,
+      },
+      { method: 'POST', action: '/api/post-actions' }
+    );
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle(post.title || '');
+    setEditText(post.text);
+    setActionError(null);
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    fetcher.submit(
+      {
+        intent: 'delete',
+        postUri: post.uri,
+      },
+      { method: 'POST', action: '/api/post-actions' }
+    );
+    setShowDeleteDialog(false);
+  };
 
   // Parse embed data if exists
   let embedImages: any[] = [];
@@ -142,6 +216,8 @@ export default function PostDetail() {
       console.error('Failed to parse embed data:', e);
     }
   }
+
+  const isSubmitting = fetcher.state === 'submitting';
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -168,6 +244,19 @@ export default function PostDetail() {
         </Link>
       </div>
 
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone. All comments will also be removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isSubmitting}
+      />
+
       {/* Main Post */}
       <div className="card mb-6">
         <div className="flex gap-4">
@@ -182,23 +271,50 @@ export default function PostDetail() {
 
           {/* Right: Content */}
           <div className="flex-1">
-            {/* Title */}
-            {post.title && (
-              <h1 className="text-3xl font-serif font-bold mb-3">
-                {post.title}
-              </h1>
-            )}
+            {/* Header with Action Menu */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                {/* Title - Editable or Display */}
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Title (optional)"
+                    className="w-full text-2xl font-serif font-bold px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary mb-2"
+                    maxLength={300}
+                  />
+                ) : (
+                  post.title && (
+                    <h1 className="text-3xl font-serif font-bold">
+                      {post.title}
+                    </h1>
+                  )
+                )}
+              </div>
 
-            {/* Metadata */}
-            <div className="flex items-center gap-2 text-sm text-gray mb-4">
-              <span title={post.authorDid}>{authorDisplay}</span>
-              <span>•</span>
-              <span>{timeAgo}</span>
+              {/* Action Menu */}
+              <PostActionMenu
+                postUri={post.uri}
+                isAuthor={isAuthor}
+                isModerator={isModerator}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </div>
+
+            {/* Author & Metadata */}
+            <div className="mb-4">
+              <PostHeader
+                authorDid={post.authorDid}
+                createdAt={post.createdAt}
+                showAvatar={true}
+                size="medium"
+              />
               {isAuthor && (
-                <>
-                  <span>•</span>
-                  <span className="text-primary font-semibold">You</span>
-                </>
+                <span className="ml-2 text-primary font-semibold text-sm">
+                  (You)
+                </span>
               )}
             </div>
 
@@ -216,10 +332,46 @@ export default function PostDetail() {
               </div>
             )}
 
-            {/* Full Text Content */}
-            <div className="prose prose-sm max-w-none mb-4">
-              <p className="whitespace-pre-wrap break-words">{post.text}</p>
-            </div>
+            {/* Action Error */}
+            {actionError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-red-800 text-sm">{actionError}</p>
+              </div>
+            )}
+
+            {/* Full Text Content - Editable or Display */}
+            {isEditing ? (
+              <div className="mb-4">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={8}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Post content..."
+                  required
+                />
+                <div className="flex items-center justify-end gap-3 mt-3">
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-gray hover:text-dark transition-smooth disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={isSubmitting || !editText.trim()}
+                    className="px-6 py-2 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none mb-4">
+                <p className="whitespace-pre-wrap break-words">{post.text}</p>
+              </div>
+            )}
 
             {/* Image Embed */}
             {embedImages.length > 0 && (
@@ -400,15 +552,17 @@ function CommentCard({
         {/* Right: Content */}
         <div className="flex-1">
           {/* Author & Time */}
-          <div className="flex items-center gap-2 text-sm text-gray mb-2">
-            <span className="font-semibold" title={comment.authorDid}>
-              {authorDisplay}
-            </span>
+          <div className="mb-2">
+            <PostHeader
+              authorDid={comment.authorDid}
+              createdAt={comment.createdAt}
+              size="small"
+            />
             {isAuthor && (
-              <span className="text-primary font-semibold text-xs">You</span>
+              <span className="ml-2 text-primary font-semibold text-xs">
+                (You)
+              </span>
             )}
-            <span>•</span>
-            <span>{timeAgo}</span>
           </div>
 
           {/* Comment Text */}
