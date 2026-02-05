@@ -12,12 +12,13 @@ import {
 } from '~/lib/db/communities.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
+import { generateMeta } from '~/lib/meta';
 
 export const meta: MetaFunction = () => {
-  return [
-    { title: 'Discover - MLCommons Community' },
-    { name: 'description', content: 'Discover trending posts and communities' },
-  ];
+  return generateMeta({
+    title: 'Discover',
+    description: 'Discover trending posts and rising communities. Find new content and connect with like-minded people.',
+  });
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {

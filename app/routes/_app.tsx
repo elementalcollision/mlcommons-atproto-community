@@ -8,10 +8,18 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-light dark:bg-dark-darkest transition-colors">
-      <header className="bg-dark text-white sticky top-0 z-50 shadow-natural dark:border-b dark:border-gray-800">
+      {/* Skip to content link for keyboard navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-dark focus:rounded-lg focus:font-semibold"
+      >
+        Skip to main content
+      </a>
+
+      <header className="bg-dark text-white sticky top-0 z-50 shadow-natural dark:border-b dark:border-gray-800" role="banner">
         <div className="container-custom py-4">
           <div className="flex items-center justify-between">
-            <Link to="/home" className="text-xl font-serif text-primary hover:text-primary-dark no-underline">
+            <Link to="/home" className="text-xl font-serif text-primary hover:text-primary-dark no-underline" aria-label="MLCommons Community - Go to home">
               MLCommons
             </Link>
 
@@ -214,6 +222,20 @@ export default function AppLayout() {
 
                 <div className="border-t border-gray-700 mt-2 pt-2">
                   <Link
+                    to="/search"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg no-underline transition-colors ${
+                      location.pathname === '/search'
+                        ? 'bg-gray-800 text-primary font-semibold'
+                        : 'text-white hover:bg-gray-800'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                  </Link>
+                  <Link
                     to="/bookmarks"
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg no-underline transition-colors ${
@@ -263,11 +285,88 @@ export default function AppLayout() {
         </div>
       </header>
 
-      <main className="flex-1 py-4 sm:py-8 text-dark dark:text-gray-100">
+      <main id="main-content" className="flex-1 py-4 sm:py-8 pb-20 lg:pb-8 text-dark dark:text-gray-100" role="main">
         <Outlet />
       </main>
 
-      <footer className="bg-dark text-white py-6 mt-auto dark:border-t dark:border-gray-800">
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-darker border-t border-gray-200 dark:border-gray-700 z-50 safe-area-inset-bottom">
+        <div className="flex justify-around items-center h-16">
+          <Link
+            to="/home"
+            className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+              location.pathname === '/home'
+                ? 'text-primary'
+                : 'text-gray dark:text-gray-400 hover:text-primary'
+            }`}
+            aria-label="Home"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="text-[10px] mt-1 font-medium">Home</span>
+          </Link>
+
+          <Link
+            to="/discover"
+            className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+              location.pathname === '/discover'
+                ? 'text-primary'
+                : 'text-gray dark:text-gray-400 hover:text-primary'
+            }`}
+            aria-label="Discover"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <span className="text-[10px] mt-1 font-medium">Discover</span>
+          </Link>
+
+          <Link
+            to="/c/create"
+            className="flex flex-col items-center justify-center w-full h-full text-primary"
+            aria-label="Create"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary text-dark flex items-center justify-center -mt-4 shadow-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+          </Link>
+
+          <Link
+            to="/search"
+            className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+              location.pathname === '/search'
+                ? 'text-primary'
+                : 'text-gray dark:text-gray-400 hover:text-primary'
+            }`}
+            aria-label="Search"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span className="text-[10px] mt-1 font-medium">Search</span>
+          </Link>
+
+          <Link
+            to="/settings"
+            className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+              location.pathname === '/settings'
+                ? 'text-primary'
+                : 'text-gray dark:text-gray-400 hover:text-primary'
+            }`}
+            aria-label="Profile"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="text-[10px] mt-1 font-medium">Profile</span>
+          </Link>
+        </div>
+      </nav>
+
+      <footer className="hidden lg:block bg-dark text-white py-6 mt-auto dark:border-t dark:border-gray-800">
         <div className="container-custom text-center text-sm text-gray-400">
           <p>Built with AT Protocol • Powered by MLCommons</p>
         </div>

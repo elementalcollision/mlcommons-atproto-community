@@ -7,12 +7,13 @@ import type { TimeFilter } from '~/lib/db/posts.server';
 import { getUserSubscribedCommunityIds, findCommunityById } from '~/lib/db/communities.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
+import { generateMeta } from '~/lib/meta';
 
 export const meta: MetaFunction = () => {
-  return [
-    { title: 'Home - MLCommons Community' },
-    { name: 'description', content: 'Your personalized community feed' },
-  ];
+  return generateMeta({
+    title: 'Home Feed',
+    description: 'Your personalized community feed. See posts from communities you follow and discover trending content.',
+  });
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {

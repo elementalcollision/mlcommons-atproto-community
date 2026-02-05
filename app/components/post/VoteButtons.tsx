@@ -92,11 +92,22 @@ export function VoteButtons({
       : 'text-gray hover:text-red-500';
 
   return (
-    <div className={`flex flex-col items-center gap-1 ${minWidth}`}>
+    <div
+      className={`flex flex-col items-center gap-1 ${minWidth}`}
+      role="group"
+      aria-label="Vote on this post"
+    >
       <button
         onClick={() => handleVote('up')}
-        className={`${upvoteColor} transition-smooth ${padding}`}
-        title={isAuthenticated ? 'Upvote' : 'Sign in to vote'}
+        className={`${upvoteColor} transition-smooth ${padding} focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark rounded`}
+        aria-label={
+          optimisticVote === 'up'
+            ? 'Remove upvote'
+            : isAuthenticated
+              ? 'Upvote'
+              : 'Sign in to upvote'
+        }
+        aria-pressed={optimisticVote === 'up'}
         disabled={fetcher.state !== 'idle'}
       >
         <svg
@@ -104,6 +115,7 @@ export function VoteButtons({
           fill={optimisticVote === 'up' ? 'currentColor' : 'none'}
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -114,14 +126,24 @@ export function VoteButtons({
         </svg>
       </button>
 
-      <span className={`font-bold ${countSize}`}>
+      <span
+        className={`font-bold ${countSize}`}
+        aria-label={`${optimisticCount} votes`}
+      >
         {optimisticCount}
       </span>
 
       <button
         onClick={() => handleVote('down')}
-        className={`${downvoteColor} transition-smooth ${padding}`}
-        title={isAuthenticated ? 'Downvote' : 'Sign in to vote'}
+        className={`${downvoteColor} transition-smooth ${padding} focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-dark rounded`}
+        aria-label={
+          optimisticVote === 'down'
+            ? 'Remove downvote'
+            : isAuthenticated
+              ? 'Downvote'
+              : 'Sign in to downvote'
+        }
+        aria-pressed={optimisticVote === 'down'}
         disabled={fetcher.state !== 'idle'}
       >
         <svg
@@ -129,6 +151,7 @@ export function VoteButtons({
           fill={optimisticVote === 'down' ? 'currentColor' : 'none'}
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"

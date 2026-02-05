@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Outlet, useLoaderData, Link, useLocation } from "@remix-run/react";
 import { getCommunity } from "~/services/community.server";
@@ -6,6 +6,14 @@ import { optionalAuth } from "~/lib/auth/require-auth.server";
 import { getTrendingCommunities, getNewCommunities } from "~/lib/db/communities.server";
 import { getCommunityRules, canModerate, isUserBanned } from "~/lib/db/moderation.server";
 import { formatDistanceToNow } from "date-fns";
+import { communityMeta } from "~/lib/meta";
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  if (!data?.community) {
+    return [{ title: 'Community Not Found' }];
+  }
+  return communityMeta(data.community);
+};
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { communityName } = params;

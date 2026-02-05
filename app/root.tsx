@@ -72,13 +72,37 @@ export function ErrorBoundary() {
   // Handle route errors (404, 403, 500, etc.)
   if (isRouteErrorResponse(error)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-light">
+      <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark-darkest">
         <div className="text-center max-w-md mx-auto px-4">
-          <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-6 flex items-center justify-center">
-            <span className="text-4xl font-bold text-gray">{error.status}</span>
+          {/* Status Icon */}
+          <div className="mb-6">
+            {error.status === 404 ? (
+              <div className="w-24 h-24 mx-auto text-gray-400 dark:text-gray-500">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                </svg>
+              </div>
+            ) : error.status === 403 ? (
+              <div className="w-24 h-24 mx-auto text-red-400 dark:text-red-500">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-24 h-24 mx-auto text-orange-400 dark:text-orange-500">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+            )}
           </div>
 
-          <h1 className="text-3xl font-serif font-bold mb-3">
+          {/* Error Status Code */}
+          <div className="text-6xl font-bold text-gray-300 dark:text-gray-700 mb-4">
+            {error.status}
+          </div>
+
+          <h1 className="text-3xl font-serif font-bold mb-3 text-dark dark:text-white">
             {error.status === 404
               ? 'Page Not Found'
               : error.status === 403
@@ -88,7 +112,7 @@ export function ErrorBoundary() {
                   : 'Something went wrong'}
           </h1>
 
-          <p className="text-gray mb-6">
+          <p className="text-gray dark:text-gray-400 mb-8">
             {error.status === 404
               ? "The page you're looking for doesn't exist or has been moved."
               : error.status === 403
@@ -101,17 +125,31 @@ export function ErrorBoundary() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to="/"
-              className="px-6 py-2 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
+              className="px-6 py-3 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
             >
               Go Home
             </Link>
             <button
               onClick={() => window.history.back()}
-              className="px-6 py-2 bg-gray-100 text-dark rounded-lg font-semibold hover:bg-gray-200 transition-smooth"
+              className="px-6 py-3 bg-gray-100 dark:bg-dark-light text-dark dark:text-white rounded-lg font-semibold hover:bg-gray-200 dark:hover:bg-dark-lighter transition-smooth"
             >
               Go Back
             </button>
           </div>
+
+          {/* Helpful Links for 404 */}
+          {error.status === 404 && (
+            <div className="mt-12 text-sm text-gray dark:text-gray-400">
+              <p className="mb-3">You might be looking for:</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link to="/home" className="text-secondary-blue hover:underline">Home Feed</Link>
+                <span>•</span>
+                <Link to="/discover" className="text-secondary-blue hover:underline">Discover</Link>
+                <span>•</span>
+                <Link to="/communities" className="text-secondary-blue hover:underline">Communities</Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -121,32 +159,26 @@ export function ErrorBoundary() {
   const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-light">
+    <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark-darkest">
       <div className="text-center max-w-md mx-auto px-4">
-        <div className="w-20 h-20 bg-red-100 rounded-full mx-auto mb-6 flex items-center justify-center">
-          <svg
-            className="w-10 h-10 text-red-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+        <div className="w-24 h-24 mx-auto mb-6 text-red-400 dark:text-red-500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
             />
           </svg>
         </div>
 
-        <h1 className="text-3xl font-serif font-bold mb-3">Oops!</h1>
+        <h1 className="text-3xl font-serif font-bold mb-3 text-dark dark:text-white">Oops!</h1>
 
-        <p className="text-gray mb-6">
+        <p className="text-gray dark:text-gray-400 mb-6">
           Something unexpected happened. Don't worry, it's not your fault.
         </p>
 
         {process.env.NODE_ENV === 'development' && (
-          <pre className="bg-gray-100 p-4 rounded-lg text-left text-sm mb-6 overflow-auto max-h-40">
+          <pre className="bg-gray-100 dark:bg-dark-light p-4 rounded-lg text-left text-sm mb-6 overflow-auto max-h-40 text-dark dark:text-gray-300">
             {errorMessage}
           </pre>
         )}
@@ -154,13 +186,13 @@ export function ErrorBoundary() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
+            className="px-6 py-3 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
           >
             Try Again
           </button>
           <Link
             to="/"
-            className="px-6 py-2 bg-gray-100 text-dark rounded-lg font-semibold hover:bg-gray-200 transition-smooth"
+            className="px-6 py-3 bg-gray-100 dark:bg-dark-light text-dark dark:text-white rounded-lg font-semibold hover:bg-gray-200 dark:hover:bg-dark-lighter transition-smooth"
           >
             Go Home
           </Link>

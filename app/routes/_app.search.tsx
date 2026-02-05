@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from '@remix-run/node';
+import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useLoaderData, Link, useSearchParams, Form } from '@remix-run/react';
 import { formatDistanceToNow } from 'date-fns';
@@ -7,6 +7,18 @@ import { searchPosts } from '~/lib/db/posts.server';
 import { searchCommunities } from '~/lib/db/communities.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
+import { generateMeta } from '~/lib/meta';
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  const query = data?.query;
+  return generateMeta({
+    title: query ? `Search: ${query}` : 'Search',
+    description: query
+      ? `Search results for "${query}" on MLCommons Community`
+      : 'Search posts and communities on MLCommons',
+    noIndex: true, // Don't index search results
+  });
+};
 
 type SearchTab = 'posts' | 'communities';
 
