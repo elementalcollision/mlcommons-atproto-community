@@ -68,6 +68,7 @@ export async function listPosts(
     replyRoot?: string;
     search?: string;
     tag?: string;
+    includeRemoved?: boolean; // If true, include removed posts (for moderators)
     limit?: number;
     offset?: number;
     sortBy?: 'hot' | 'new' | 'top';
@@ -80,6 +81,7 @@ export async function listPosts(
     replyRoot,
     search,
     tag,
+    includeRemoved = false,
     limit = 20,
     offset = 0,
     sortBy = 'hot',
@@ -119,6 +121,11 @@ export async function listPosts(
     conditions.push(sql`${tag.trim()} = ANY(${posts.tags})`);
   }
 
+  // Filter out removed posts unless explicitly included (for moderators)
+  if (!includeRemoved) {
+    conditions.push(eq(posts.isRemoved, false));
+  }
+
   // Build base query
   const baseQuery = db
     .select()
@@ -126,20 +133,20 @@ export async function listPosts(
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .$dynamic();
 
-  // Apply sorting
+  // Apply sorting - pinned posts always come first
   let sortedQuery;
   switch (sortBy) {
     case 'hot':
-      sortedQuery = baseQuery.orderBy(desc(posts.hotScore));
+      sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.hotScore));
       break;
     case 'new':
-      sortedQuery = baseQuery.orderBy(desc(posts.createdAt));
+      sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.createdAt));
       break;
     case 'top':
-      sortedQuery = baseQuery.orderBy(desc(posts.voteCount));
+      sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.voteCount));
       break;
     default:
-      sortedQuery = baseQuery.orderBy(desc(posts.hotScore));
+      sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.hotScore));
   }
 
   // Apply pagination

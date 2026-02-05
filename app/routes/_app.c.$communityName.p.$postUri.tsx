@@ -201,6 +201,18 @@ export default function PostDetail() {
     setShowDeleteDialog(false);
   };
 
+  // Moderator actions
+  const handleModeratorAction = (action: string) => {
+    fetcher.submit(
+      {
+        intent: 'moderator',
+        postUri: post.uri,
+        action,
+      },
+      { method: 'POST', action: '/api/post-actions' }
+    );
+  };
+
   // Parse embed data if exists
   let embedImages: any[] = [];
   let embedExternal: any = null;
@@ -271,6 +283,36 @@ export default function PostDetail() {
 
           {/* Right: Content */}
           <div className="flex-1">
+            {/* Status Indicators */}
+            {(post.isPinned || post.isLocked || post.isRemoved) && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {post.isPinned && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    Pinned
+                  </span>
+                )}
+                {post.isLocked && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Locked
+                  </span>
+                )}
+                {post.isRemoved && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                    Removed
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Header with Action Menu */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
@@ -298,8 +340,17 @@ export default function PostDetail() {
                 postUri={post.uri}
                 isAuthor={isAuthor}
                 isModerator={isModerator}
+                isPinned={post.isPinned}
+                isLocked={post.isLocked}
+                isRemoved={post.isRemoved}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onPin={() => handleModeratorAction('pin')}
+                onUnpin={() => handleModeratorAction('unpin')}
+                onLock={() => handleModeratorAction('lock')}
+                onUnlock={() => handleModeratorAction('unlock')}
+                onRemove={() => handleModeratorAction('remove')}
+                onRestore={() => handleModeratorAction('restore')}
               />
             </div>
 

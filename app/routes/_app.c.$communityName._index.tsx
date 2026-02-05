@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { optionalAuth } from '~/lib/auth/require-auth.server';
 import { getCommunity } from '~/services/community.server';
 import { listPosts } from '~/services/post.server';
+import { getUserModeratorRole } from '~/lib/db/moderators.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
 
@@ -28,6 +29,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Community not found', { status: 404 });
   }
 
+  // Check moderator status to determine if we should show removed posts
+  let isModerator = false;
+  if (auth?.user.id) {
+    const modRole = await getUserModeratorRole(auth.user.id, community.id);
+    isModerator = !!modRole;
+  }
+
   // Fetch posts with pagination
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -41,6 +49,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       replyRoot: '', // Only top-level posts (not comments)
       search: search || undefined,
       tag: tag || undefined,
+      includeRemoved: isModerator, // Moderators can see removed posts
     },
     auth?.user.id // For vote status
   );
@@ -337,6 +346,36 @@ function PostCard({
 
         {/* Right: Content */}
         <div className="flex-1 min-w-0">
+          {/* Status Indicators */}
+          {(post.isPinned || post.isLocked || post.isRemoved) && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {post.isPinned && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Pinned
+                </span>
+              )}
+              {post.isLocked && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Locked
+                </span>
+              )}
+              {post.isRemoved && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-800 text-xs font-semibold rounded">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  Removed
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           {post.title && (
             <h3 className="text-xl font-serif font-bold mb-2">

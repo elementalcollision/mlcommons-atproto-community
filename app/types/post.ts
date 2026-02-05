@@ -53,6 +53,7 @@ export interface ListPostsOptions {
   replyRoot?: string;  // Get comments for a post
   search?: string;     // Search in title and text
   tag?: string;        // Filter by tag
+  includeRemoved?: boolean; // If true, include removed posts (for moderators)
   limit?: number;
   offset?: number;
   sortBy?: 'hot' | 'new' | 'top';

@@ -4,22 +4,34 @@ export interface PostActionMenuProps {
   postUri: string;
   isAuthor: boolean;
   isModerator?: boolean;
+  isPinned?: boolean;
+  isLocked?: boolean;
+  isRemoved?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
   onPin?: () => void;
+  onUnpin?: () => void;
   onLock?: () => void;
+  onUnlock?: () => void;
   onRemove?: () => void;
+  onRestore?: () => void;
 }
 
 export function PostActionMenu({
   postUri,
   isAuthor,
   isModerator = false,
+  isPinned = false,
+  isLocked = false,
+  isRemoved = false,
   onEdit,
   onDelete,
   onPin,
+  onUnpin,
   onLock,
+  onUnlock,
   onRemove,
+  onRestore,
 }: PostActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,7 +57,7 @@ export function PostActionMenu({
 
   const hasActions =
     (isAuthor && (onEdit || onDelete)) ||
-    (isModerator && (onPin || onLock || onRemove));
+    (isModerator && (onPin || onUnpin || onLock || onUnlock || onRemove || onRestore));
 
   if (!hasActions) {
     return null;
@@ -119,11 +131,29 @@ export function PostActionMenu({
             </button>
           )}
 
-          {/* Moderator actions (for Step 3) */}
-          {isModerator && (onPin || onLock || onRemove) && (
+          {/* Moderator actions */}
+          {isModerator && (
             <>
               <div className="border-t border-gray-200 my-1" />
-              {onPin && (
+              <div className="px-4 py-1 text-xs text-gray font-semibold uppercase">
+                Moderator
+              </div>
+
+              {/* Pin/Unpin */}
+              {isPinned && onUnpin ? (
+                <button
+                  onClick={() => {
+                    onUnpin();
+                    setIsOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-smooth flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Unpin post
+                </button>
+              ) : onPin ? (
                 <button
                   onClick={() => {
                     onPin();
@@ -131,23 +161,28 @@ export function PostActionMenu({
                   }}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-smooth flex items-center gap-2"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                   </svg>
-                  Pin
+                  Pin post
                 </button>
-              )}
-              {onLock && (
+              ) : null}
+
+              {/* Lock/Unlock */}
+              {isLocked && onUnlock ? (
+                <button
+                  onClick={() => {
+                    onUnlock();
+                    setIsOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-smooth flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                  Unlock comments
+                </button>
+              ) : onLock ? (
                 <button
                   onClick={() => {
                     onLock();
@@ -155,23 +190,28 @@ export function PostActionMenu({
                   }}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 transition-smooth flex items-center gap-2"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  Lock
+                  Lock comments
                 </button>
-              )}
-              {onRemove && (
+              ) : null}
+
+              {/* Remove/Restore */}
+              {isRemoved && onRestore ? (
+                <button
+                  onClick={() => {
+                    onRestore();
+                    setIsOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 transition-smooth flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Restore post
+                </button>
+              ) : onRemove ? (
                 <button
                   onClick={() => {
                     onRemove();
@@ -179,22 +219,12 @@ export function PostActionMenu({
                   }}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-smooth flex items-center gap-2"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
-                  Remove
+                  Remove post
                 </button>
-              )}
+              ) : null}
             </>
           )}
         </div>
