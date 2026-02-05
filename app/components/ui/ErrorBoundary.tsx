@@ -1,56 +1,10 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  Link,
-  useRouteError,
-  isRouteErrorResponse,
-} from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
-
-import "./styles/tailwind.css";
-
-export const links: LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Roboto+Mono:wght@400;500&display=swap",
-  },
-];
-
-export function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <Meta />
-        <Links />
-      </head>
-      <body className="bg-light font-sans text-dark antialiased">
-        {children}
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-
-export default function App() {
-  return <Outlet />;
-}
+import { Link, useRouteError, isRouteErrorResponse } from '@remix-run/react';
 
 /**
- * Global Error Boundary
+ * Error Boundary Component
  *
- * Catches unhandled errors at the root level.
+ * Catches errors and displays user-friendly error messages.
+ * Handles both route errors (404, etc.) and unexpected errors.
  */
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -58,7 +12,7 @@ export function ErrorBoundary() {
   // Handle route errors (404, 403, 500, etc.)
   if (isRouteErrorResponse(error)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-light">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-6 flex items-center justify-center">
             <span className="text-4xl font-bold text-gray">{error.status}</span>
@@ -107,7 +61,7 @@ export function ErrorBoundary() {
   const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-light">
+    <div className="min-h-[60vh] flex items-center justify-center">
       <div className="text-center max-w-md mx-auto px-4">
         <div className="w-20 h-20 bg-red-100 rounded-full mx-auto mb-6 flex items-center justify-center">
           <svg
@@ -151,6 +105,55 @@ export function ErrorBoundary() {
             Go Home
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Compact Error Card
+ *
+ * For inline error display within pages
+ */
+export function ErrorCard({
+  title = 'Error',
+  message = 'Something went wrong',
+  onRetry,
+}: {
+  title?: string;
+  message?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="card bg-red-50 border border-red-200">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <svg
+            className="w-6 h-6 text-red-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-red-800">{title}</h3>
+          <p className="text-sm text-red-700">{message}</p>
+        </div>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="text-sm text-red-600 hover:text-red-800 font-medium"
+          >
+            Retry
+          </button>
+        )}
       </div>
     </div>
   );
