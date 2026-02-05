@@ -1,7 +1,7 @@
 import { db } from '~/lib/db.server';
 import { posts } from '../../../db/schema/posts';
 import { votes } from '../../../db/schema/votes';
-import { eq, and, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, ilike } from 'drizzle-orm';
 import type { Post, NewPost } from '../../../db/schema/posts';
 import type { PostWithVotes } from '~/types/post';
 
@@ -66,6 +66,7 @@ export async function listPosts(
     communityId?: string;
     authorDid?: string;
     replyRoot?: string;
+    search?: string;
     limit?: number;
     offset?: number;
     sortBy?: 'hot' | 'new' | 'top';
@@ -76,6 +77,7 @@ export async function listPosts(
     communityId,
     authorDid,
     replyRoot,
+    search,
     limit = 20,
     offset = 0,
     sortBy = 'hot',
@@ -96,6 +98,17 @@ export async function listPosts(
     } else {
       // Get comments for a specific post
       conditions.push(eq(posts.replyRoot, replyRoot));
+    }
+  }
+  // Add search condition - search in title and text
+  if (search && search.trim()) {
+    const searchTerm = `%${search.trim()}%`;
+    const searchCondition = or(
+      ilike(posts.title, searchTerm),
+      ilike(posts.text, searchTerm)
+    );
+    if (searchCondition) {
+      conditions.push(searchCondition);
     }
   }
 

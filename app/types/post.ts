@@ -51,6 +51,7 @@ export interface ListPostsOptions {
   communityId?: string;
   authorDid?: string;
   replyRoot?: string;  // Get comments for a post
+  search?: string;     // Search in title and text
   limit?: number;
   offset?: number;
   sortBy?: 'hot' | 'new' | 'top';

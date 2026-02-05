@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, SerializeFrom } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import { useLoaderData, Link, useSearchParams } from '@remix-run/react';
+import { useLoaderData, Link, useSearchParams, Form } from '@remix-run/react';
 import { formatDistanceToNow } from 'date-fns';
 import { optionalAuth } from '~/lib/auth/require-auth.server';
 import { getCommunity } from '~/services/community.server';
@@ -19,6 +19,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     | 'hot'
     | 'new'
     | 'top';
+  const search = url.searchParams.get('q') || '';
 
   // Get community
   const community = await getCommunity(communityName, auth?.user.id);
@@ -37,6 +38,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       offset,
       sortBy,
       replyRoot: '', // Only top-level posts (not comments)
+      search: search || undefined,
     },
     auth?.user.id // For vote status
   );
@@ -52,6 +54,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     hasNext,
     hasPrevious: page > 1,
     sortBy,
+    search,
     isAuthenticated: !!auth,
   });
 }
@@ -64,6 +67,7 @@ export default function CommunityPosts() {
     hasNext,
     hasPrevious,
     sortBy,
+    search,
     isAuthenticated,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,6 +87,14 @@ export default function CommunityPosts() {
     setSearchParams(params);
   };
 
+  // Clear search
+  const clearSearch = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    params.delete('page');
+    setSearchParams(params);
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       {/* Post Creation Section */}
@@ -94,6 +106,67 @@ export default function CommunityPosts() {
           >
             Create a post in this community...
           </Link>
+        </div>
+      )}
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <Form method="get" className="flex gap-2">
+          {/* Preserve current sort */}
+          <input type="hidden" name="sort" value={sortBy} />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              name="q"
+              defaultValue={search}
+              placeholder="Search posts..."
+              className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
+          >
+            Search
+          </button>
+          {search && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="px-4 py-2 bg-gray-100 text-gray rounded-lg font-semibold hover:bg-gray-200 transition-smooth"
+            >
+              Clear
+            </button>
+          )}
+        </Form>
+      </div>
+
+      {/* Search Results Header */}
+      {search && (
+        <div className="mb-4 p-3 bg-secondary-blue/10 rounded-lg flex items-center justify-between">
+          <span className="text-sm">
+            Showing results for "<span className="font-semibold">{search}</span>"
+            {posts.length === 0 ? ' - No posts found' : ` - ${posts.length} post${posts.length === 1 ? '' : 's'} found`}
+          </span>
+          <button
+            onClick={clearSearch}
+            className="text-sm text-secondary-blue hover:underline"
+          >
+            Clear search
+          </button>
         </div>
       )}
 
