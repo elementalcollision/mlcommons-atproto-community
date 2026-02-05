@@ -3,6 +3,7 @@ import { json } from '@remix-run/node';
 import { requireAuth } from '~/lib/auth/require-auth.server';
 import { updatePost, deletePost, getPost } from '~/services/post.server';
 import { isUserModerator, getUserModeratorRole } from '~/lib/db/moderators.server';
+import { removePost, restorePost, togglePinPost, toggleLockPost } from '~/lib/db/moderation.server';
 import * as postDb from '~/lib/db/posts.server';
 import { z } from 'zod';
 
@@ -77,42 +78,27 @@ export async function action({ request }: ActionFunctionArgs) {
           action: formData.get('action'),
         });
 
-        // Get the post to check community
-        const post = await getPost(input.postUri, auth.user.id);
-        if (!post) {
-          return json({ error: 'Post not found' }, { status: 404 });
-        }
-
-        // Check moderator permissions
-        const modRole = await getUserModeratorRole(auth.user.id, post.communityId);
-        if (!modRole) {
-          return json({ error: 'You are not a moderator of this community' }, { status: 403 });
-        }
-
-        // Perform the action
-        let updateData: Record<string, boolean> = {};
+        // Perform the action using moderation functions (includes permission check and audit logging)
         switch (input.action) {
           case 'pin':
-            updateData = { isPinned: true };
+            await togglePinPost(input.postUri, auth.user.id, true);
             break;
           case 'unpin':
-            updateData = { isPinned: false };
+            await togglePinPost(input.postUri, auth.user.id, false);
             break;
           case 'lock':
-            updateData = { isLocked: true };
+            await toggleLockPost(input.postUri, auth.user.id, true);
             break;
           case 'unlock':
-            updateData = { isLocked: false };
+            await toggleLockPost(input.postUri, auth.user.id, false);
             break;
           case 'remove':
-            updateData = { isRemoved: true };
+            await removePost(input.postUri, auth.user.id);
             break;
           case 'restore':
-            updateData = { isRemoved: false };
+            await restorePost(input.postUri, auth.user.id);
             break;
         }
-
-        await postDb.updatePost(input.postUri, updateData);
 
         return json({
           success: true,

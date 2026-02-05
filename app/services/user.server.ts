@@ -1,7 +1,10 @@
 import { findUserById } from '~/lib/db/users.server';
 import { listPosts } from './post.server';
+import { getUserSubscribedCommunities } from '~/lib/db/communities.server';
+import { getUserBookmarks } from '~/lib/db/bookmarks.server';
 import type { User } from '../../db/schema/users';
 import type { PostWithVotes, ListPostsOptions } from '~/types/post';
+import type { CommunityWithStats } from '~/types/community';
 
 export interface UserProfile extends User {
   totalKarma: number;
@@ -86,9 +89,34 @@ export async function getUserComments(
 /**
  * Get communities user has subscribed to
  */
-export async function getUserCommunities(userId: string) {
-  // This would need a helper in communities.server.ts
-  // For now, return empty array
-  // TODO: Implement in Phase 5 Step 1
-  return [];
+export async function getUserCommunities(
+  userId: string,
+  options: { limit?: number; offset?: number } = {}
+): Promise<CommunityWithStats[]> {
+  return await getUserSubscribedCommunities(userId, options);
+}
+
+/**
+ * Get user's bookmarked/saved posts
+ */
+export async function getUserSavedPosts(
+  userId: string,
+  options: { limit?: number; offset?: number } = {},
+  viewerId?: string
+): Promise<any[]> {
+  const { bookmarks } = await getUserBookmarks(userId, options);
+  // Transform to a simpler format
+  return bookmarks.map(b => ({
+    uri: b.post.uri,
+    title: b.post.title,
+    text: b.post.text,
+    authorDid: b.post.authorDid,
+    createdAt: b.post.createdAt,
+    voteCount: b.post.voteCount,
+    commentCount: b.post.commentCount,
+    communityId: b.post.communityId,
+    communityName: b.post.communityName,
+    userVote: null,
+    replyRoot: null,
+  }));
 }

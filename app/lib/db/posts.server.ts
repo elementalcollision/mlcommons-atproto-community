@@ -1,6 +1,7 @@
 import { db } from '~/lib/db.server';
 import { posts } from '../../../db/schema/posts';
 import { votes } from '../../../db/schema/votes';
+import { communities } from '../../../db/schema/communities';
 import { eq, and, or, sql, desc, asc, inArray, ilike, gte, between } from 'drizzle-orm';
 import type { Post, NewPost } from '../../../db/schema/posts';
 import type { PostWithVotes } from '~/types/post';
@@ -458,5 +459,81 @@ export async function getRisingPosts(
     userVote: null,
     isUpvoted: false,
     isDownvoted: false,
+  }));
+}
+
+/**
+ * Search posts by query string (searches title and text)
+ */
+export async function searchPosts(
+  query: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    userId?: string;
+  } = {}
+): Promise<any[]> {
+  const { limit = 20, offset = 0, userId } = options;
+
+  if (!query.trim()) return [];
+
+  const searchTerm = `%${query.trim()}%`;
+
+  // Search posts and join with communities to get community name
+  const results = await db
+    .select({
+      uri: posts.uri,
+      rkey: posts.rkey,
+      cid: posts.cid,
+      authorDid: posts.authorDid,
+      communityId: posts.communityId,
+      title: posts.title,
+      text: posts.text,
+      embedType: posts.embedType,
+      embedData: posts.embedData,
+      tags: posts.tags,
+      voteCount: posts.voteCount,
+      commentCount: posts.commentCount,
+      createdAt: posts.createdAt,
+      isPinned: posts.isPinned,
+      isLocked: posts.isLocked,
+      isRemoved: posts.isRemoved,
+      communityName: communities.name,
+    })
+    .from(posts)
+    .innerJoin(communities, eq(posts.communityId, communities.id))
+    .where(
+      and(
+        eq(posts.isRemoved, false),
+        sql`${posts.replyRoot} IS NULL`, // Only top-level posts
+        or(
+          ilike(posts.title, searchTerm),
+          ilike(posts.text, searchTerm)
+        )
+      )
+    )
+    .orderBy(desc(posts.voteCount), desc(posts.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  // Get user votes if authenticated
+  if (userId && results.length > 0) {
+    const postUris = results.map((p) => p.uri);
+    const userVotes = await db
+      .select()
+      .from(votes)
+      .where(and(eq(votes.authorDid, userId), inArray(votes.subjectUri, postUris)));
+
+    const voteMap = new Map(userVotes.map((v) => [v.subjectUri, v.direction]));
+
+    return results.map((post) => ({
+      ...post,
+      userVote: voteMap.get(post.uri) || null,
+    }));
+  }
+
+  return results.map((post) => ({
+    ...post,
+    userVote: null,
   }));
 }

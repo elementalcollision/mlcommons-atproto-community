@@ -9,3 +9,4 @@ export * from './subscriptions';
 export * from './notifications';
 export * from './bookmarks';
 export * from './user-settings';
+export * from './moderation';

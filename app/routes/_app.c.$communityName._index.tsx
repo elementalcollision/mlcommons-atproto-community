@@ -8,6 +8,7 @@ import { listPosts } from '~/services/post.server';
 import { getUserModeratorRole } from '~/lib/db/moderators.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
+import { ModActionsMenu } from '~/components/post/ModActionsMenu';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const auth = await optionalAuth(request);
@@ -68,6 +69,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     search,
     tag,
     isAuthenticated: !!auth,
+    isModerator,
   });
 }
 
@@ -82,6 +84,7 @@ export default function CommunityPosts() {
     search,
     tag,
     isAuthenticated,
+    isModerator,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -279,8 +282,10 @@ export default function CommunityPosts() {
             <PostCard
               key={post.uri}
               post={post}
+              communityId={community.id}
               communityName={community.name}
               isAuthenticated={isAuthenticated}
+              isModerator={isModerator}
               onTagClick={filterByTag}
               activeTag={tag}
             />
@@ -317,14 +322,18 @@ export default function CommunityPosts() {
  */
 function PostCard({
   post,
+  communityId,
   communityName,
   isAuthenticated,
+  isModerator,
   onTagClick,
   activeTag,
 }: {
   post: SerializeFrom<typeof loader>['posts'][number];
+  communityId: string;
   communityName: string;
   isAuthenticated: boolean;
+  isModerator: boolean;
   onTagClick: (tag: string) => void;
   activeTag: string;
 }) {
@@ -443,37 +452,51 @@ function PostCard({
           )}
 
           {/* Footer Metadata */}
-          <div className="flex items-center gap-2 text-sm text-gray flex-wrap">
-            <Link
-              to={`/c/${communityName}/p/${encodeURIComponent(post.uri)}`}
-              className="hover:text-secondary-blue transition-smooth"
-            >
-              {post.commentCount === 0
-                ? 'Add comment'
-                : `${post.commentCount} comment${post.commentCount === 1 ? '' : 's'}`}
-            </Link>
-            {post.tags && post.tags.length > 0 && (
-              <>
-                <span>•</span>
-                <div className="flex gap-1">
-                  {post.tags.slice(0, 3).map((tagName: string) => (
-                    <button
-                      key={tagName}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onTagClick(tagName);
-                      }}
-                      className={`px-2 py-0.5 rounded text-xs transition-smooth ${
-                        activeTag === tagName
-                          ? 'bg-primary text-dark font-semibold'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
-                    >
-                      {tagName}
-                    </button>
-                  ))}
-                </div>
-              </>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray flex-wrap">
+              <Link
+                to={`/c/${communityName}/p/${encodeURIComponent(post.uri)}`}
+                className="hover:text-secondary-blue transition-smooth"
+              >
+                {post.commentCount === 0
+                  ? 'Add comment'
+                  : `${post.commentCount} comment${post.commentCount === 1 ? '' : 's'}`}
+              </Link>
+              {post.tags && post.tags.length > 0 && (
+                <>
+                  <span>•</span>
+                  <div className="flex gap-1">
+                    {post.tags.slice(0, 3).map((tagName: string) => (
+                      <button
+                        key={tagName}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onTagClick(tagName);
+                        }}
+                        className={`px-2 py-0.5 rounded text-xs transition-smooth ${
+                          activeTag === tagName
+                            ? 'bg-primary text-dark font-semibold'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tagName}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Mod Actions */}
+            {isModerator && (
+              <ModActionsMenu
+                postUri={post.uri}
+                authorDid={post.authorDid}
+                communityId={communityId}
+                isPinned={post.isPinned}
+                isLocked={post.isLocked}
+                isRemoved={post.isRemoved}
+              />
             )}
           </div>
         </div>

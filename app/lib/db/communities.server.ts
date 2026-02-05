@@ -1,6 +1,6 @@
 import { db } from "../db.server";
 import { communities, subscriptions, posts } from "../../../db/schema";
-import { eq, and, sql, desc, asc, ilike, or, gte, notInArray, ne } from "drizzle-orm";
+import { eq, and, sql, desc, asc, ilike, or, gte, notInArray, ne, inArray } from "drizzle-orm";
 import type { Community, NewCommunity } from "../../../db/schema";
 import type {
   CommunityWithStats,
@@ -269,6 +269,38 @@ export async function getUserSubscribedCommunityIds(
 }
 
 /**
+ * Get user's subscribed communities with full details
+ */
+export async function getUserSubscribedCommunities(
+  userId: string,
+  options: { limit?: number; offset?: number } = {}
+): Promise<CommunityWithStats[]> {
+  const { limit = 20, offset = 0 } = options;
+
+  const results = await db
+    .select({
+      community: communities,
+      postCount: sql<number>`(
+        SELECT COUNT(*) FROM posts
+        WHERE posts.community_id = ${communities.id}
+        AND posts.reply_root IS NULL
+      )::int`,
+    })
+    .from(communities)
+    .innerJoin(subscriptions, eq(communities.id, subscriptions.communityId))
+    .where(eq(subscriptions.userDid, userId))
+    .orderBy(desc(subscriptions.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return results.map((r) => ({
+    ...r.community,
+    postCount: r.postCount,
+    isSubscribed: true,
+  }));
+}
+
+/**
  * Get trending communities (most new members in last 7 days + activity)
  */
 export async function getTrendingCommunities(
@@ -426,4 +458,59 @@ export async function getCommunityStats(): Promise<{
     totalMembers: result[0]?.totalMembers || 0,
     totalPosts: result[0]?.totalPosts || 0,
   };
+}
+
+/**
+ * Search communities by name or description
+ */
+export async function searchCommunities(
+  query: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    userId?: string;
+  } = {}
+): Promise<CommunityWithStats[]> {
+  const { limit = 20, offset = 0, userId } = options;
+
+  if (!query.trim()) return [];
+
+  const searchTerm = `%${query.trim()}%`;
+
+  const results = await db
+    .select()
+    .from(communities)
+    .where(
+      or(
+        ilike(communities.name, searchTerm),
+        ilike(communities.displayName, searchTerm),
+        ilike(communities.description, searchTerm)
+      )
+    )
+    .orderBy(desc(communities.memberCount), desc(communities.postCount))
+    .limit(limit)
+    .offset(offset);
+
+  // Get subscription status if logged in
+  let subscribedIds = new Set<string>();
+  if (userId && results.length > 0) {
+    const communityIds = results.map((c) => c.id);
+    const subs = await db
+      .select({ communityId: subscriptions.communityId })
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.userDid, userId),
+          inArray(subscriptions.communityId, communityIds)
+        )
+      );
+    subscribedIds = new Set(subs.map((s) => s.communityId));
+  }
+
+  return results.map((community) => ({
+    ...community,
+    memberCount: community.memberCount || 0,
+    postCount: community.postCount || 0,
+    isSubscribed: subscribedIds.has(community.id),
+  }));
 }

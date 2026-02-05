@@ -4,6 +4,7 @@ import { Outlet, useLoaderData, Link, useLocation } from "@remix-run/react";
 import { getCommunity } from "~/services/community.server";
 import { optionalAuth } from "~/lib/auth/require-auth.server";
 import { getTrendingCommunities, getNewCommunities } from "~/lib/db/communities.server";
+import { getCommunityRules, canModerate, isUserBanned } from "~/lib/db/moderation.server";
 import { formatDistanceToNow } from "date-fns";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -16,6 +17,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Get optional auth for subscribe status
   const auth = await optionalAuth(request);
   const userId = auth?.identity?.providerUserId;
+  const userDid = auth?.user?.id;
 
   // Fetch community with stats
   const community = await getCommunity(communityName, userId);
@@ -25,22 +27,45 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   // Get related communities for sidebar (exclude current)
-  const [trendingCommunities, newCommunities] = await Promise.all([
+  const [trendingCommunities, newCommunities, rules] = await Promise.all([
     getTrendingCommunities({ limit: 3, excludeIds: [community.id] }, userId),
     getNewCommunities({ limit: 3, daysOld: 30 }, userId),
+    getCommunityRules(community.id),
   ]);
+
+  // Check if user can moderate this community
+  let isModerator = false;
+  let isBanned = false;
+  if (userDid) {
+    const [modCheck, banCheck] = await Promise.all([
+      canModerate(community.id, userDid),
+      isUserBanned(community.id, userDid),
+    ]);
+    isModerator = modCheck;
+    isBanned = banCheck.banned;
+  }
 
   return json({
     community,
     isAuthenticated: !!auth,
     trendingCommunities,
     newCommunities,
+    rules,
+    isModerator,
+    isBanned,
   });
 }
 
 export default function CommunityLayout() {
-  const { community, isAuthenticated, trendingCommunities, newCommunities } =
-    useLoaderData<typeof loader>();
+  const {
+    community,
+    isAuthenticated,
+    trendingCommunities,
+    newCommunities,
+    rules,
+    isModerator,
+    isBanned,
+  } = useLoaderData<typeof loader>();
   const location = useLocation();
 
   // Parse avatar and banner BlobRefs if they exist
@@ -49,6 +74,7 @@ export default function CommunityLayout() {
 
   // Determine active tab
   const isAboutPage = location.pathname.endsWith("/about");
+  const isModPage = location.pathname.endsWith("/mod");
 
   return (
     <div className="min-h-screen bg-light">
@@ -125,27 +151,42 @@ export default function CommunityLayout() {
             </div>
 
             {/* Navigation Tabs */}
-            <nav className="flex gap-6 mt-6 border-b border-gray-200">
+            <nav className="flex gap-6 mt-6 border-b border-gray-200 dark:border-gray-700">
               <Link
                 to={`/c/${community.name}`}
-                className={`pb-3 px-1 font-semibold transition-smooth ${
-                  !isAboutPage
+                className={`pb-3 px-1 font-semibold transition-smooth no-underline ${
+                  !isAboutPage && !isModPage
                     ? "text-secondary-blue border-b-2 border-secondary-blue"
-                    : "text-gray hover:text-dark"
+                    : "text-gray hover:text-dark dark:hover:text-white"
                 }`}
               >
                 Posts
               </Link>
               <Link
                 to={`/c/${community.name}/about`}
-                className={`pb-3 px-1 font-semibold transition-smooth ${
+                className={`pb-3 px-1 font-semibold transition-smooth no-underline ${
                   isAboutPage
                     ? "text-secondary-blue border-b-2 border-secondary-blue"
-                    : "text-gray hover:text-dark"
+                    : "text-gray hover:text-dark dark:hover:text-white"
                 }`}
               >
                 About
               </Link>
+              {isModerator && (
+                <Link
+                  to={`/c/${community.name}/mod`}
+                  className={`pb-3 px-1 font-semibold transition-smooth no-underline flex items-center gap-1 ${
+                    isModPage
+                      ? "text-secondary-blue border-b-2 border-secondary-blue"
+                      : "text-gray hover:text-dark dark:hover:text-white"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  Mod Tools
+                </Link>
+              )}
             </nav>
           </div>
         </div>
@@ -186,25 +227,58 @@ export default function CommunityLayout() {
                     <span className="font-medium">{community.postCount.toLocaleString()}</span>
                   </div>
                 </div>
-                {isAuthenticated && (
+                {isAuthenticated && !isBanned && (
                   <Link
                     to={`/c/${community.name}/submit`}
-                    className="block w-full mt-4 py-2 bg-primary text-dark text-center rounded-lg font-semibold hover:bg-primary-dark transition-smooth"
+                    className="block w-full mt-4 py-2 bg-primary text-dark text-center rounded-lg font-semibold hover:bg-primary-dark transition-smooth no-underline"
                   >
                     Create Post
                   </Link>
                 )}
+                {isBanned && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                      You are banned from this community
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Community Rules (if we had them) */}
+              {/* Community Rules */}
               <div className="card">
-                <h3 className="font-serif font-bold mb-3">Community Rules</h3>
-                <ol className="text-sm space-y-2 list-decimal list-inside text-gray">
-                  <li>Be respectful and civil</li>
-                  <li>No spam or self-promotion</li>
-                  <li>Stay on topic</li>
-                  <li>No harassment or hate speech</li>
-                </ol>
+                <h3 className="font-serif font-bold mb-3 dark:text-white">Community Rules</h3>
+                {rules.length > 0 ? (
+                  <ol className="text-sm space-y-2">
+                    {rules.map((rule, index) => (
+                      <li key={rule.id} className="flex gap-2">
+                        <span className="w-5 h-5 flex items-center justify-center bg-secondary-blue text-white text-xs rounded-full font-medium flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <span className="font-medium dark:text-white">{rule.title}</span>
+                          {rule.description && (
+                            <p className="text-gray dark:text-gray-400 text-xs mt-0.5">{rule.description}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-gray dark:text-gray-400">
+                    <li>Be respectful and civil</li>
+                    <li>No spam or self-promotion</li>
+                    <li>Stay on topic</li>
+                    <li>No harassment or hate speech</li>
+                  </ol>
+                )}
+                {isModerator && (
+                  <Link
+                    to={`/c/${community.name}/mod`}
+                    className="block mt-3 text-xs text-secondary-blue hover:underline"
+                  >
+                    Manage rules →
+                  </Link>
+                )}
               </div>
 
               {/* Trending Communities */}
