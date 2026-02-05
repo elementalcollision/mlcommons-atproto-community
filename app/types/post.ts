@@ -52,6 +52,7 @@ export interface ListPostsOptions {
   authorDid?: string;
   replyRoot?: string;  // Get comments for a post
   search?: string;     // Search in title and text
+  tag?: string;        // Filter by tag
   limit?: number;
   offset?: number;
   sortBy?: 'hot' | 'new' | 'top';

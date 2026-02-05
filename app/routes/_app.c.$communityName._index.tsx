@@ -20,6 +20,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     | 'new'
     | 'top';
   const search = url.searchParams.get('q') || '';
+  const tag = url.searchParams.get('tag') || '';
 
   // Get community
   const community = await getCommunity(communityName, auth?.user.id);
@@ -39,6 +40,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       sortBy,
       replyRoot: '', // Only top-level posts (not comments)
       search: search || undefined,
+      tag: tag || undefined,
     },
     auth?.user.id // For vote status
   );
@@ -55,6 +57,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     hasPrevious: page > 1,
     sortBy,
     search,
+    tag,
     isAuthenticated: !!auth,
   });
 }
@@ -68,6 +71,7 @@ export default function CommunityPosts() {
     hasPrevious,
     sortBy,
     search,
+    tag,
     isAuthenticated,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -91,6 +95,22 @@ export default function CommunityPosts() {
   const clearSearch = () => {
     const params = new URLSearchParams(searchParams);
     params.delete('q');
+    params.delete('page');
+    setSearchParams(params);
+  };
+
+  // Filter by tag
+  const filterByTag = (tagName: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tag', tagName);
+    params.delete('page'); // Reset to page 1
+    setSearchParams(params);
+  };
+
+  // Clear tag filter
+  const clearTagFilter = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('tag');
     params.delete('page');
     setSearchParams(params);
   };
@@ -170,6 +190,25 @@ export default function CommunityPosts() {
         </div>
       )}
 
+      {/* Tag Filter Header */}
+      {tag && (
+        <div className="mb-4 p-3 bg-primary/20 rounded-lg flex items-center justify-between">
+          <span className="text-sm flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Filtering by tag: <span className="font-semibold bg-primary px-2 py-0.5 rounded">{tag}</span>
+            {posts.length === 0 ? ' - No posts found' : ` - ${posts.length} post${posts.length === 1 ? '' : 's'}`}
+          </span>
+          <button
+            onClick={clearTagFilter}
+            className="text-sm text-dark hover:underline font-medium"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
       {/* Sort Selector */}
       {posts.length > 0 && (
         <div className="mb-6 flex items-center gap-3">
@@ -233,6 +272,8 @@ export default function CommunityPosts() {
               post={post}
               communityName={community.name}
               isAuthenticated={isAuthenticated}
+              onTagClick={filterByTag}
+              activeTag={tag}
             />
           ))}
         </div>
@@ -269,10 +310,14 @@ function PostCard({
   post,
   communityName,
   isAuthenticated,
+  onTagClick,
+  activeTag,
 }: {
   post: SerializeFrom<typeof loader>['posts'][number];
   communityName: string;
   isAuthenticated: boolean;
+  onTagClick: (tag: string) => void;
+  activeTag: string;
 }) {
   // Truncate text for preview
   const truncatedText =
@@ -372,13 +417,21 @@ function PostCard({
               <>
                 <span>•</span>
                 <div className="flex gap-1">
-                  {post.tags.slice(0, 3).map((tag: string) => (
-                    <span
-                      key={tag}
-                      className="bg-gray-100 px-2 py-0.5 rounded text-xs"
+                  {post.tags.slice(0, 3).map((tagName: string) => (
+                    <button
+                      key={tagName}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onTagClick(tagName);
+                      }}
+                      className={`px-2 py-0.5 rounded text-xs transition-smooth ${
+                        activeTag === tagName
+                          ? 'bg-primary text-dark font-semibold'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
                     >
-                      {tag}
-                    </span>
+                      {tagName}
+                    </button>
                   ))}
                 </div>
               </>

@@ -67,6 +67,7 @@ export async function listPosts(
     authorDid?: string;
     replyRoot?: string;
     search?: string;
+    tag?: string;
     limit?: number;
     offset?: number;
     sortBy?: 'hot' | 'new' | 'top';
@@ -78,6 +79,7 @@ export async function listPosts(
     authorDid,
     replyRoot,
     search,
+    tag,
     limit = 20,
     offset = 0,
     sortBy = 'hot',
@@ -110,6 +112,11 @@ export async function listPosts(
     if (searchCondition) {
       conditions.push(searchCondition);
     }
+  }
+
+  // Add tag filter condition - filter by posts containing the tag
+  if (tag && tag.trim()) {
+    conditions.push(sql`${tag.trim()} = ANY(${posts.tags})`);
   }
 
   // Build base query
