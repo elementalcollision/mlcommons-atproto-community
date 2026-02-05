@@ -1,9 +1,34 @@
 import { db } from '~/lib/db.server';
 import { posts } from '../../../db/schema/posts';
 import { votes } from '../../../db/schema/votes';
-import { eq, and, or, sql, desc, asc, inArray, ilike } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, ilike, gte, between } from 'drizzle-orm';
 import type { Post, NewPost } from '../../../db/schema/posts';
 import type { PostWithVotes } from '~/types/post';
+
+// Time filter options
+export type TimeFilter = 'hour' | 'today' | 'week' | 'month' | 'year' | 'all';
+
+/**
+ * Get date threshold for time filter
+ */
+function getTimeThreshold(timeFilter: TimeFilter): Date | null {
+  const now = new Date();
+  switch (timeFilter) {
+    case 'hour':
+      return new Date(now.getTime() - 60 * 60 * 1000);
+    case 'today':
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    case 'week':
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case 'month':
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case 'year':
+      return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    case 'all':
+    default:
+      return null;
+  }
+}
 
 /**
  * Find post by URI
@@ -69,10 +94,11 @@ export async function listPosts(
     replyRoot?: string;
     search?: string;
     tag?: string;
+    timeFilter?: TimeFilter; // Time-based filtering
     includeRemoved?: boolean; // If true, include removed posts (for moderators)
     limit?: number;
     offset?: number;
-    sortBy?: 'hot' | 'new' | 'top';
+    sortBy?: 'hot' | 'new' | 'top' | 'trending';
   } = {},
   userId?: string
 ): Promise<PostWithVotes[]> {
@@ -83,6 +109,7 @@ export async function listPosts(
     replyRoot,
     search,
     tag,
+    timeFilter = 'all',
     includeRemoved = false,
     limit = 20,
     offset = 0,
@@ -130,6 +157,12 @@ export async function listPosts(
     conditions.push(eq(posts.isRemoved, false));
   }
 
+  // Apply time filter
+  const timeThreshold = getTimeThreshold(timeFilter);
+  if (timeThreshold) {
+    conditions.push(gte(posts.createdAt, timeThreshold));
+  }
+
   // Build base query
   const baseQuery = db
     .select()
@@ -148,6 +181,14 @@ export async function listPosts(
       break;
     case 'top':
       sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.voteCount));
+      break;
+    case 'trending':
+      // Trending: combines recency with engagement velocity
+      // Uses a formula that weighs recent votes more heavily
+      sortedQuery = baseQuery.orderBy(
+        desc(posts.isPinned),
+        desc(sql`(${posts.voteCount} + ${posts.commentCount} * 2) / POWER(EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600 + 2, 1.5)`)
+      );
       break;
     default:
       sortedQuery = baseQuery.orderBy(desc(posts.isPinned), desc(posts.hotScore));
@@ -293,4 +334,129 @@ export async function updatePostVoteCount(uri: string): Promise<void> {
     .update(posts)
     .set({ voteCount })
     .where(eq(posts.uri, uri));
+}
+
+/**
+ * Get trending posts across all communities
+ * Uses engagement velocity: (votes + comments*2) / age^1.5
+ */
+export async function getTrendingPosts(
+  options: {
+    limit?: number;
+    timeFilter?: TimeFilter;
+  } = {},
+  userId?: string
+): Promise<PostWithVotes[]> {
+  const { limit = 10, timeFilter = 'today' } = options;
+
+  // Get time threshold - default to last 24 hours for trending
+  const timeThreshold = getTimeThreshold(timeFilter) || getTimeThreshold('today');
+
+  const results = await db
+    .select()
+    .from(posts)
+    .where(
+      and(
+        eq(posts.isRemoved, false),
+        sql`${posts.replyRoot} IS NULL`, // Only top-level posts
+        timeThreshold ? gte(posts.createdAt, timeThreshold) : undefined
+      )
+    )
+    .orderBy(
+      desc(sql`(${posts.voteCount} + ${posts.commentCount} * 2) / POWER(EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600 + 2, 1.5)`)
+    )
+    .limit(limit);
+
+  // Get user votes if authenticated
+  if (userId && results.length > 0) {
+    const postUris = results.map((p) => p.uri);
+    const userVotes = await db
+      .select()
+      .from(votes)
+      .where(and(eq(votes.authorDid, userId), inArray(votes.subjectUri, postUris)));
+
+    const voteMap = new Map(userVotes.map((v) => [v.subjectUri, v.direction]));
+
+    return results.map((post) => {
+      const userVote = voteMap.get(post.uri) || null;
+      return {
+        ...post,
+        voteCount: post.voteCount || 0,
+        userVote,
+        isUpvoted: userVote === 'up',
+        isDownvoted: userVote === 'down',
+      };
+    });
+  }
+
+  return results.map((post) => ({
+    ...post,
+    voteCount: post.voteCount || 0,
+    userVote: null,
+    isUpvoted: false,
+    isDownvoted: false,
+  }));
+}
+
+/**
+ * Get rising posts - posts with recent upvote activity
+ * Focuses on posts that are gaining traction quickly
+ */
+export async function getRisingPosts(
+  options: {
+    limit?: number;
+  } = {},
+  userId?: string
+): Promise<PostWithVotes[]> {
+  const { limit = 10 } = options;
+
+  // Rising posts: created in last 12 hours with good engagement
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+  const results = await db
+    .select()
+    .from(posts)
+    .where(
+      and(
+        eq(posts.isRemoved, false),
+        sql`${posts.replyRoot} IS NULL`,
+        gte(posts.createdAt, twelveHoursAgo),
+        gte(posts.voteCount, 2) // Minimum engagement threshold
+      )
+    )
+    .orderBy(
+      // Sort by votes per hour (velocity)
+      desc(sql`${posts.voteCount}::float / (EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600 + 0.5)`)
+    )
+    .limit(limit);
+
+  // Get user votes if authenticated
+  if (userId && results.length > 0) {
+    const postUris = results.map((p) => p.uri);
+    const userVotes = await db
+      .select()
+      .from(votes)
+      .where(and(eq(votes.authorDid, userId), inArray(votes.subjectUri, postUris)));
+
+    const voteMap = new Map(userVotes.map((v) => [v.subjectUri, v.direction]));
+
+    return results.map((post) => {
+      const userVote = voteMap.get(post.uri) || null;
+      return {
+        ...post,
+        voteCount: post.voteCount || 0,
+        userVote,
+        isUpvoted: userVote === 'up',
+        isDownvoted: userVote === 'down',
+      };
+    });
+  }
+
+  return results.map((post) => ({
+    ...post,
+    voteCount: post.voteCount || 0,
+    userVote: null,
+    isUpvoted: false,
+    isDownvoted: false,
+  }));
 }

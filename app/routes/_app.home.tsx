@@ -3,6 +3,7 @@ import { json } from '@remix-run/node';
 import { useLoaderData, Link, useSearchParams } from '@remix-run/react';
 import { optionalAuth } from '~/lib/auth/require-auth.server';
 import { listPosts } from '~/services/post.server';
+import type { TimeFilter } from '~/lib/db/posts.server';
 import { getUserSubscribedCommunityIds, findCommunityById } from '~/lib/db/communities.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
@@ -22,7 +23,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const feed = (url.searchParams.get('feed') || 'all') as 'all' | 'subscribed';
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-  const sortBy = (url.searchParams.get('sort') || 'hot') as 'hot' | 'new' | 'top';
+  const sortBy = (url.searchParams.get('sort') || 'hot') as 'hot' | 'new' | 'top' | 'trending';
+  const timeFilter = (url.searchParams.get('t') || 'all') as TimeFilter;
 
   // Get subscribed community IDs for authenticated users
   let subscribedCommunityIds: string[] = [];
@@ -43,6 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         limit: limit + 1,
         offset,
         sortBy,
+        timeFilter,
         replyRoot: '', // Only top-level posts
       },
       userId
@@ -54,6 +57,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         limit: limit + 1,
         offset,
         sortBy,
+        timeFilter,
         replyRoot: '', // Only top-level posts
       },
       userId
@@ -85,6 +89,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     posts: postsWithCommunity,
     feed,
     sortBy,
+    timeFilter,
     currentPage: page,
     hasNext,
     hasPrevious: page > 1,
@@ -98,6 +103,7 @@ export default function Home() {
     posts,
     feed,
     sortBy,
+    timeFilter,
     currentPage,
     hasNext,
     hasPrevious,
@@ -118,6 +124,18 @@ export default function Home() {
   const handleSortChange = (newSort: string) => {
     const params = new URLSearchParams(searchParams);
     params.set('sort', newSort);
+    params.delete('page');
+    // Clear time filter when not on top sort
+    if (newSort !== 'top') {
+      params.delete('t');
+    }
+    setSearchParams(params);
+  };
+
+  // Time filter handler
+  const handleTimeFilterChange = (newTime: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('t', newTime);
     params.delete('page');
     setSearchParams(params);
   };
@@ -174,7 +192,7 @@ export default function Home() {
             <div className="ml-auto flex items-center gap-3">
               <span className="text-sm font-semibold text-gray">Sort:</span>
               <div className="flex gap-2">
-                {['hot', 'new', 'top'].map((sort) => (
+                {['hot', 'new', 'trending', 'top'].map((sort) => (
                   <button
                     key={sort}
                     onClick={() => handleSortChange(sort)}
@@ -191,6 +209,35 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Time Filter (only for Top sort) */}
+        {sortBy === 'top' && (
+          <div className="mb-6 flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray">Time:</span>
+            <div className="flex gap-1 flex-wrap">
+              {[
+                { id: 'hour', label: 'Hour' },
+                { id: 'today', label: 'Today' },
+                { id: 'week', label: 'Week' },
+                { id: 'month', label: 'Month' },
+                { id: 'year', label: 'Year' },
+                { id: 'all', label: 'All Time' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => handleTimeFilterChange(id)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-smooth ${
+                    timeFilter === id
+                      ? 'bg-secondary-blue text-white'
+                      : 'bg-gray-100 text-gray hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Empty State for Subscribed Feed */}
         {feed === 'subscribed' && !hasSubscriptions && isAuthenticated ? (

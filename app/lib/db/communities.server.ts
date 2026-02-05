@@ -1,6 +1,6 @@
 import { db } from "../db.server";
-import { communities, subscriptions } from "../../../db/schema";
-import { eq, and, sql, desc, asc, ilike, or } from "drizzle-orm";
+import { communities, subscriptions, posts } from "../../../db/schema";
+import { eq, and, sql, desc, asc, ilike, or, gte, notInArray, ne } from "drizzle-orm";
 import type { Community, NewCommunity } from "../../../db/schema";
 import type {
   CommunityWithStats,
@@ -266,4 +266,164 @@ export async function getUserSubscribedCommunityIds(
     .where(eq(subscriptions.userDid, userId));
 
   return results.map((r) => r.communityId);
+}
+
+/**
+ * Get trending communities (most new members in last 7 days + activity)
+ */
+export async function getTrendingCommunities(
+  options: {
+    limit?: number;
+    excludeIds?: string[];
+  } = {},
+  userId?: string
+): Promise<CommunityWithStats[]> {
+  const { limit = 5, excludeIds = [] } = options;
+
+  // Calculate a trending score based on:
+  // - Recent member growth (subscriptions in last 7 days)
+  // - Recent post activity
+  // - Total member count (for baseline popularity)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Get communities with recent activity
+  const results = await db
+    .select({
+      community: communities,
+      recentPosts: sql<number>`(
+        SELECT COUNT(*) FROM posts
+        WHERE posts.community_id = ${communities.id}
+        AND posts.created_at > ${sevenDaysAgo}
+        AND posts.reply_root IS NULL
+      )::int`,
+    })
+    .from(communities)
+    .where(
+      excludeIds.length > 0
+        ? notInArray(communities.id, excludeIds)
+        : undefined
+    )
+    .orderBy(
+      // Trending score: weighs recent posts heavily, with member count as baseline
+      desc(sql`(${communities.memberCount} * 0.3) + (
+        SELECT COUNT(*) FROM posts
+        WHERE posts.community_id = ${communities.id}
+        AND posts.created_at > ${sevenDaysAgo}
+      ) * 2`)
+    )
+    .limit(limit);
+
+  // Get subscription status if userId provided
+  let subscribedIds = new Set<string>();
+  if (userId) {
+    const userSubscriptions = await db
+      .select({ communityId: subscriptions.communityId })
+      .from(subscriptions)
+      .where(eq(subscriptions.userDid, userId));
+    subscribedIds = new Set(userSubscriptions.map((s) => s.communityId));
+  }
+
+  return results.map(({ community, recentPosts }) => ({
+    ...community,
+    memberCount: community.memberCount || 0,
+    postCount: community.postCount || 0,
+    isSubscribed: subscribedIds.has(community.id),
+    recentPosts,
+  }));
+}
+
+/**
+ * Get recommended communities for a user
+ * Based on: not subscribed, popular, recently active
+ */
+export async function getRecommendedCommunities(
+  userId: string,
+  limit: number = 5
+): Promise<CommunityWithStats[]> {
+  // Get user's subscribed communities to exclude
+  const subscribedIds = await getUserSubscribedCommunityIds(userId);
+
+  // Get popular communities user hasn't joined
+  const results = await db
+    .select()
+    .from(communities)
+    .where(
+      subscribedIds.length > 0
+        ? notInArray(communities.id, subscribedIds)
+        : undefined
+    )
+    .orderBy(
+      // Sort by a combination of members and activity
+      desc(sql`${communities.memberCount} + ${communities.postCount} * 0.5`)
+    )
+    .limit(limit);
+
+  return results.map((c) => ({
+    ...c,
+    memberCount: c.memberCount || 0,
+    postCount: c.postCount || 0,
+    isSubscribed: false,
+  }));
+}
+
+/**
+ * Get new/recently created communities
+ */
+export async function getNewCommunities(
+  options: {
+    limit?: number;
+    daysOld?: number;
+  } = {},
+  userId?: string
+): Promise<CommunityWithStats[]> {
+  const { limit = 5, daysOld = 30 } = options;
+
+  const threshold = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
+
+  const results = await db
+    .select()
+    .from(communities)
+    .where(gte(communities.createdAt, threshold))
+    .orderBy(desc(communities.createdAt))
+    .limit(limit);
+
+  // Get subscription status if userId provided
+  let subscribedIds = new Set<string>();
+  if (userId) {
+    const userSubscriptions = await db
+      .select({ communityId: subscriptions.communityId })
+      .from(subscriptions)
+      .where(eq(subscriptions.userDid, userId));
+    subscribedIds = new Set(userSubscriptions.map((s) => s.communityId));
+  }
+
+  return results.map((c) => ({
+    ...c,
+    memberCount: c.memberCount || 0,
+    postCount: c.postCount || 0,
+    isSubscribed: subscribedIds.has(c.id),
+  }));
+}
+
+/**
+ * Get community statistics summary
+ */
+export async function getCommunityStats(): Promise<{
+  totalCommunities: number;
+  totalMembers: number;
+  totalPosts: number;
+}> {
+  const result = await db
+    .select({
+      totalCommunities: sql<number>`COUNT(*)::int`,
+      totalMembers: sql<number>`COALESCE(SUM(${communities.memberCount}), 0)::int`,
+      totalPosts: sql<number>`COALESCE(SUM(${communities.postCount}), 0)::int`,
+    })
+    .from(communities);
+
+  return {
+    totalCommunities: result[0]?.totalCommunities || 0,
+    totalMembers: result[0]?.totalMembers || 0,
+    totalPosts: result[0]?.totalPosts || 0,
+  };
 }

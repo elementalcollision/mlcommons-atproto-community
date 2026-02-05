@@ -25,6 +25,16 @@ export default function AppLayout() {
                 Home
               </Link>
               <Link
+                to="/discover"
+                className={`no-underline transition-colors ${
+                  location.pathname === '/discover'
+                    ? 'text-primary font-semibold'
+                    : 'text-white hover:text-primary'
+                }`}
+              >
+                Discover
+              </Link>
+              <Link
                 to="/communities"
                 className={`no-underline transition-colors ${
                   location.pathname.startsWith('/communities')
@@ -111,6 +121,16 @@ export function ErrorBoundary() {
                 }`}
               >
                 Home
+              </Link>
+              <Link
+                to="/discover"
+                className={`no-underline transition-colors ${
+                  location.pathname === '/discover'
+                    ? 'text-primary font-semibold'
+                    : 'text-white hover:text-primary'
+                }`}
+              >
+                Discover
               </Link>
               <Link
                 to="/communities"

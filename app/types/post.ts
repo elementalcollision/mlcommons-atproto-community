@@ -45,6 +45,11 @@ export interface UpdatePostInput {
 }
 
 /**
+ * Time filter options for posts
+ */
+export type TimeFilter = 'hour' | 'today' | 'week' | 'month' | 'year' | 'all';
+
+/**
  * Options for listing posts
  */
 export interface ListPostsOptions {
@@ -54,10 +59,11 @@ export interface ListPostsOptions {
   replyRoot?: string;  // Get comments for a post
   search?: string;     // Search in title and text
   tag?: string;        // Filter by tag
+  timeFilter?: TimeFilter; // Time-based filtering
   includeRemoved?: boolean; // If true, include removed posts (for moderators)
   limit?: number;
   offset?: number;
-  sortBy?: 'hot' | 'new' | 'top';
+  sortBy?: 'hot' | 'new' | 'top' | 'trending';
 }
 
 /**
