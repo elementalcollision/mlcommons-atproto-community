@@ -497,6 +497,7 @@ export default function PostDetail() {
                 communityName={community.name}
                 currentUserId={currentUserId}
                 isAuthenticated={isAuthenticated}
+                isPostLocked={post.isLocked}
               />
             ))}
           </>
@@ -507,7 +508,7 @@ export default function PostDetail() {
 }
 
 /**
- * Comment Card Component
+ * Comment Card Component with inline reply functionality
  */
 function CommentCard({
   comment,
@@ -515,25 +516,58 @@ function CommentCard({
   communityName,
   currentUserId,
   isAuthenticated,
+  isPostLocked,
 }: {
   comment: any;
   postUri: string;
   communityName: string;
   currentUserId?: string;
   isAuthenticated: boolean;
+  isPostLocked?: boolean;
 }) {
-  const timeAgo = formatDistanceToNow(new Date(comment.createdAt), {
-    addSuffix: true,
-  });
-
-  const authorDisplay = comment.authorDid.startsWith('did:')
-    ? comment.authorDid.slice(0, 20) + '...'
-    : comment.authorDid;
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const replyFetcher = useFetcher();
 
   const isAuthor = currentUserId === comment.authorDid;
 
   // Determine nesting level (simple: direct reply vs nested)
   const isNested = comment.replyParent !== postUri;
+
+  // Check if reply is submitting
+  const isSubmittingReply = replyFetcher.state === 'submitting';
+
+  // Handle successful reply submission - close form and clear text
+  useEffect(() => {
+    if (replyFetcher.state === 'idle' && replyFetcher.data === undefined && showReplyForm && replyText === '') {
+      // Form was just reset after navigation/redirect
+    }
+  }, [replyFetcher.state, replyFetcher.data, showReplyForm, replyText]);
+
+  const handleReplySubmit = () => {
+    if (!replyText.trim()) return;
+
+    replyFetcher.submit(
+      {
+        intent: 'comment',
+        text: replyText,
+        replyParent: comment.uri, // Reply to this comment, not the post
+      },
+      { method: 'POST' }
+    );
+
+    // Clear form after submission (page will redirect and refresh)
+    setReplyText('');
+    setShowReplyForm(false);
+  };
+
+  const handleCancelReply = () => {
+    setReplyText('');
+    setShowReplyForm(false);
+  };
+
+  // Don't allow replies if post is locked or not authenticated
+  const canReply = isAuthenticated && !isPostLocked;
 
   return (
     <div
@@ -572,10 +606,48 @@ function CommentCard({
 
           {/* Comment Actions */}
           <div className="flex items-center gap-3 text-sm">
-            <button className="text-gray hover:text-secondary-blue transition-smooth">
-              Reply
-            </button>
+            {canReply && (
+              <button
+                onClick={() => setShowReplyForm(!showReplyForm)}
+                className="text-gray hover:text-secondary-blue transition-smooth"
+              >
+                {showReplyForm ? 'Cancel' : 'Reply'}
+              </button>
+            )}
           </div>
+
+          {/* Inline Reply Form */}
+          {showReplyForm && (
+            <div className="mt-3 pl-2 border-l-2 border-primary">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                rows={3}
+                placeholder="Write a reply..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary mb-2"
+                disabled={isSubmittingReply}
+                autoFocus
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelReply}
+                  disabled={isSubmittingReply}
+                  className="px-3 py-1 text-sm text-gray hover:text-dark transition-smooth disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReplySubmit}
+                  disabled={isSubmittingReply || !replyText.trim()}
+                  className="px-4 py-1 text-sm bg-primary text-dark rounded-lg font-semibold hover:bg-primary-dark transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingReply ? 'Posting...' : 'Reply'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
