@@ -36,15 +36,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Post not found in this community', { status: 404 });
   }
 
-  // Get comments (posts with this post as replyRoot)
-  const comments = await listPosts(
+  // Get comments (posts with this post as replyRoot) - paginated
+  const commentsLimit = 20;
+  const allComments = await listPosts(
     {
       replyRoot: postUri,
-      limit: 100, // Load first 100 comments
+      limit: commentsLimit + 1, // Fetch one extra to check if more exist
       sortBy: 'new', // Most recent first
     },
     auth?.user.id
   );
+
+  // Check if there are more comments
+  const hasMoreComments = allComments.length > commentsLimit;
+  const comments = hasMoreComments ? allComments.slice(0, commentsLimit) : allComments;
 
   // Check moderator status
   let moderatorRole: 'admin' | 'moderator' | null = null;
@@ -59,6 +64,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     isAuthenticated: !!auth,
     currentUserId: auth?.user.id,
     moderatorRole,
+    hasMoreComments,
+    totalCommentCount: post.commentCount,
   });
 }
 
@@ -122,11 +129,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function PostDetail() {
-  const { post, comments, community, isAuthenticated, currentUserId, moderatorRole } =
+  const { post, comments: initialComments, community, isAuthenticated, currentUserId, moderatorRole, hasMoreComments: initialHasMore, totalCommentCount } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
   const fetcher = useFetcher();
+  const commentsFetcher = useFetcher();
 
   // Edit/Delete state
   const [isEditing, setIsEditing] = useState(false);
@@ -134,6 +142,35 @@ export default function PostDetail() {
   const [editText, setEditText] = useState(post.text);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Comments pagination state
+  const [displayedComments, setDisplayedComments] = useState(initialComments);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [nextOffset, setNextOffset] = useState(initialComments.length);
+
+  // Reset comments when initial data changes (e.g., after adding a comment)
+  useEffect(() => {
+    setDisplayedComments(initialComments);
+    setHasMore(initialHasMore);
+    setNextOffset(initialComments.length);
+  }, [initialComments, initialHasMore]);
+
+  // Handle load more response
+  useEffect(() => {
+    const data = commentsFetcher.data as { comments?: any[]; hasMore?: boolean; nextOffset?: number } | undefined;
+    if (data?.comments) {
+      setDisplayedComments(prev => [...prev, ...data.comments]);
+      setHasMore(data.hasMore ?? false);
+      setNextOffset(data.nextOffset ?? nextOffset);
+    }
+  }, [commentsFetcher.data]);
+
+  // Load more comments handler
+  const loadMoreComments = () => {
+    commentsFetcher.load(`/api/comments?postUri=${encodeURIComponent(post.uri)}&offset=${nextOffset}&limit=20&sortBy=new`);
+  };
+
+  const isLoadingMore = commentsFetcher.state === 'loading';
 
   // Handle fetcher responses
   useEffect(() => {
@@ -479,7 +516,7 @@ export default function PostDetail() {
             {/* Post Actions */}
             <div className="flex items-center gap-4 text-sm text-gray pt-3 border-t border-gray-200">
               <span className="font-semibold">
-                {comments.length} comment{comments.length === 1 ? '' : 's'}
+                {totalCommentCount} comment{totalCommentCount === 1 ? '' : 's'}
               </span>
             </div>
           </div>
@@ -531,7 +568,7 @@ export default function PostDetail() {
 
       {/* Comments Section */}
       <div className="space-y-4">
-        {comments.length === 0 ? (
+        {displayedComments.length === 0 ? (
           <div className="card text-center py-8">
             <p className="text-gray">
               No comments yet. Be the first to share your thoughts!
@@ -539,8 +576,15 @@ export default function PostDetail() {
           </div>
         ) : (
           <>
-            <h2 className="text-xl font-serif font-bold">Comments</h2>
-            {comments.map((comment) => (
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-serif font-bold">Comments</h2>
+              {totalCommentCount > displayedComments.length && (
+                <span className="text-sm text-gray">
+                  Showing {displayedComments.length} of {totalCommentCount}
+                </span>
+              )}
+            </div>
+            {displayedComments.map((comment) => (
               <CommentCard
                 key={comment.uri}
                 comment={comment}
@@ -551,6 +595,29 @@ export default function PostDetail() {
                 isPostLocked={post.isLocked}
               />
             ))}
+
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="text-center py-4">
+                <button
+                  onClick={loadMoreComments}
+                  disabled={isLoadingMore}
+                  className="px-6 py-2 bg-gray-100 text-dark rounded-lg font-semibold hover:bg-gray-200 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingMore ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Loading...
+                    </span>
+                  ) : (
+                    'Load more comments'
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
