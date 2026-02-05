@@ -21,6 +21,8 @@ export const communities = pgTable('communities', {
 }, (table) => ({
   nameIdx: index('communities_name_idx').on(table.name),
   creatorIdx: index('communities_creator_idx').on(table.creatorDid),
+  memberCountIdx: index('communities_member_count_idx').on(table.memberCount), // For trending
+  createdAtIdx: index('communities_created_at_idx').on(table.createdAt), // For new communities
 }));
 
 export type Community = typeof communities.$inferSelect;

@@ -8,6 +8,7 @@ import { searchCommunities } from '~/lib/db/communities.server';
 import { VoteButtons } from '~/components/post/VoteButtons';
 import { PostHeader } from '~/components/post/PostHeader';
 import { generateMeta } from '~/lib/meta';
+import { enforceRateLimit, rateLimiters } from '~/lib/rate-limiter.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const query = data?.query;
@@ -26,6 +27,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const auth = await optionalAuth(request);
   const url = new URL(request.url);
   const query = url.searchParams.get('q') || '';
+
+  // Rate limit search queries (only when there's a query)
+  if (query.trim()) {
+    enforceRateLimit(request, rateLimiters.search, 'search');
+  }
   const tab = (url.searchParams.get('tab') || 'posts') as SearchTab;
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
 

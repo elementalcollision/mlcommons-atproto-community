@@ -29,6 +29,10 @@ export const posts = pgTable('posts', {
   communityHotIdx: index('posts_community_hot_idx').on(table.communityId, table.hotScore),
   authorCreatedIdx: index('posts_author_created_idx').on(table.authorDid, table.createdAt),
   replyParentIdx: index('posts_reply_parent_idx').on(table.replyParent),
+  replyRootIdx: index('posts_reply_root_idx').on(table.replyRoot), // For getting all comments in a thread
+  createdAtIdx: index('posts_created_at_idx').on(table.createdAt), // For global "new" sorting
+  hotScoreIdx: index('posts_hot_score_idx').on(table.hotScore), // For global "hot" sorting
+  voteCountIdx: index('posts_vote_count_idx').on(table.voteCount), // For "top" sorting
 }));
 
 export type Post = typeof posts.$inferSelect;

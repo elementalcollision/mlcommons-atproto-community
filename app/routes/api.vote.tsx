@@ -3,6 +3,8 @@ import { json } from '@remix-run/node';
 import { requireAuth } from '~/lib/auth/require-auth.server';
 import { vote } from '~/services/vote.server';
 import { z } from 'zod';
+import { enforceRateLimit, rateLimiters, rateLimitHeaders } from '~/lib/rate-limiter.server';
+import { logger } from '~/lib/logger.server';
 
 const voteSchema = z.object({
   intent: z.literal('vote'),
@@ -11,6 +13,9 @@ const voteSchema = z.object({
 });
 
 export async function action({ request }: ActionFunctionArgs) {
+  // Rate limit: 30 votes per minute
+  const rateLimit = enforceRateLimit(request, rateLimiters.write, 'vote');
+
   const auth = await requireAuth(request);
 
   const formData = await request.formData();
@@ -32,9 +37,11 @@ export async function action({ request }: ActionFunctionArgs) {
       validated.direction
     );
 
-    return json({ success: true });
+    return json({ success: true }, {
+      headers: rateLimitHeaders(rateLimit),
+    });
   } catch (error) {
-    console.error('Vote error:', error);
+    logger.error('Vote error', error, { userId: auth.user.id });
 
     if (error instanceof z.ZodError) {
       return json(
